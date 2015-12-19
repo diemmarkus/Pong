@@ -108,6 +108,12 @@ void DkPongSettings::writeSettings() {
 	
 	settings.setValue("playerRatio", qRound(mPlayerRatio*100.0f));
 
+	settings.setValue("player1Pin", mPlayer1Pin);
+	settings.setValue("player2Pin", mPlayer2Pin);
+	settings.setValue("speedPin", mSpeedPin);
+
+	settings.setValue("speed", mSpeed);
+
 	settings.endGroup();
 
 	qDebug() << "settings written...";
@@ -129,6 +135,22 @@ QString DkPongSettings::player2Name() const {
 	return mPlayer2Name;
 }
 
+int DkPongSettings::player1Pin() const {
+	return mPlayer1Pin;
+}
+
+int DkPongSettings::player2Pin() const {
+	return mPlayer2Pin;
+}
+
+int DkPongSettings::speedPin() const {
+	return mSpeedPin;
+}
+
+float DkPongSettings::speed() const {
+	return mSpeed;
+}
+
 float DkPongSettings::playerRatio() const {
 	return mPlayerRatio;
 }
@@ -146,6 +168,12 @@ void DkPongSettings::loadSettings() {
 	mPlayer2Name = settings.value("player2Name", mPlayer2Name).toString();
 
 	mPlayerRatio = settings.value("playerRatio", qRound(mPlayerRatio*100)).toInt()/100.0f;
+
+	mPlayer1Pin = settings.value("player1Pin", mPlayer1Pin).toInt();
+	mPlayer2Pin = settings.value("player2Pin", mPlayer2Pin).toInt();
+	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
+	
+	mSpeed = settings.value("speed", mSpeed).toFloat();
 
 	int bgAlpha = settings.value("backgroundAlpha", mBgCol.alpha()).toInt();
 	int fgAlpha = settings.value("foregroundAlpha", mFgCol.alpha()).toInt();
@@ -171,7 +199,7 @@ DkPongPlayer::DkPongPlayer(const QString& playerName, QSharedPointer<DkPongSetti
 }
 
 void DkPongPlayer::reset(const QPoint& pos) {
-	
+
 	// only reset if we don't have controller
 	if (mControllerPos == -1)
 		mRect.moveCenter(pos);
@@ -191,11 +219,18 @@ void DkPongPlayer::setHeight(int newHeight) {
 	mRect.setHeight(newHeight);
 }
 
+int DkPongPlayer::velocity() const {
+	return mVelocity;
+}
+
 void DkPongPlayer::move() {
+
+	int oldTop = mRect.top();
 
 	// arduino controlls
 	if (mControllerPos != -1) {
 		mRect.moveTop(qRound(mControllerPos/1023.0*(mS->field().height()-mRect.height())));
+		mVelocity = oldTop - mRect.top();
 		return;
 	}
 
@@ -205,6 +240,8 @@ void DkPongPlayer::move() {
 		mRect.moveBottom(mS->field().height());
 	else
 		mRect.moveTop(mRect.top() + mSpeed);
+
+	mVelocity = oldTop - mRect.top();
 }
 
 void DkPongPlayer::setSpeed(int speed) {
@@ -421,9 +458,9 @@ QSharedPointer<DkPongSettings> DkPongPort::settings() const {
 
 void DkPongPort::controllerUpdate(int controller, int val) {
 
-	if (controller == player_1)
+	if (controller == mS->player1Pin())
 		mPlayer1->setPos(val);
-	if (controller == player_2)
+	if (controller == mS->player2Pin())
 		mPlayer2->setPos(val);
 }
 
@@ -606,7 +643,7 @@ DkBall::DkBall(QSharedPointer<DkPongSettings> settings) {
 	mS = settings;
 	
 	mMinSpeed = qRound(mS->field().width()*0.005);
-	mMaxSpeed = qRound(mS->field().width()*0.01);
+	mMaxSpeed = qRound(mS->field().width()*0.1);
 	qDebug() << "maxSpeed: " << mMaxSpeed;
 
 	mRect = QRect(QPoint(), QSize(mS->unit(), mS->unit()));
@@ -620,6 +657,8 @@ void DkBall::reset() {
 	
 	//mDirection = DkVector(3, 0);// DkVector(mUnit*0.15f, mUnit*0.15f);
 	mRect.moveCenter(QPoint(qRound(mS->field().width()*0.5f), qRound(mS->field().height()*0.5f)));
+	mRally = 0;
+	mSpeed = mS->speed();
 }
 
 void DkBall::updateSize() {
@@ -640,6 +679,9 @@ QPoint DkBall::direction() const {
 bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 
 	DkVector dir = mDirection;
+	dir.normalize();
+	dir *= (float)(mSpeed + qRound(mRally/10.0));
+	fixDirection(dir);
 
 	// collision detection top & bottom
 	if (mRect.top() <= mS->field().top() && dir.y < 0 || mRect.bottom() >= mS->field().bottom() && dir.y > 0) {
@@ -647,31 +689,21 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 		//qDebug() << "collision...";
 	}
 
-	double nAngle = dir.angle() + DK_PI*0.5;//DkMath::normAngleRad(dir.angle()+DK_PI*0.5, 0, DK_PI*0.5);
-	double magic = (double)qrand() / RAND_MAX * 0.5 - 0.25;
+	DkVector nextCenter = mRect.center() + dir.toQPointF().toPoint();
 
 	// player collision
-	if (player1->rect().intersects(mRect) && dir.x < 0) {
-
-		dir.rotate((nAngle*2)+magic);
-		
-		// change the angle if the ball becomes horizontal
-		if (DkMath::distAngle(dir.angle(), 0.0) > 0.01)
-			dir.rotate(0.7);
-
-		double mod = (player1->pos() != INT_MAX) ? (player1->rect().center().y() - player1->pos())/(float)mS->field().height() : 0;
-		dir.y += (float)mod*mS->unit();
+	if (dir.x < 0 && collision(player1->rect(), nextCenter)) {
+		mSpeed *= changeDirPlayer(player1, dir);
+		nextCenter = DkVector(mRect.center()) + dir;
+		mRally++;
+		qDebug() << "rally speed: " << qRound(mRally/10.0);
 	}
-	else if (player2->rect().intersects(mRect) && dir.x > 0) {
-
-		dir.rotate((nAngle*2)+magic);
-
-		// change the angle if the ball becomes horizontal
-		if (DkMath::distAngle(dir.angle(), 0.0) > 0.01)
-			dir.rotate(0.7);
-
-		double mod = (player2->pos() != INT_MAX) ? (player2->rect().center().y() - player2->pos())/(float)mS->field().height() : 0;
-		dir.y += (float)mod*mS->unit();
+	else if (dir.x > 0 && collision(player2->rect(), nextCenter)) {
+		mSpeed *= changeDirPlayer(player2, dir);
+		nextCenter = DkVector(mRect.center()) + dir;
+		
+		mRally++;
+		qDebug() << "rally speed: " << qRound(mRally/10.0);
 	}
 	// collision detection left & right
 	else if (mRect.left() <= mS->field().left()) {
@@ -694,31 +726,75 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 	//qDebug() << ballDir.angle();
 
 	setDirection(dir);
-	mRect.moveCenter(mRect.center() + mDirection.toQPointF().toPoint());
+	mRect.moveCenter(nextCenter.toQPointF().toPoint());
 	
 	return true;
 }
 
+float DkBall::changeDirPlayer(const DkPongPlayer* player, DkVector& dir) const {
+
+	float newSpeed = 1.0f;
+
+	// if the player moves in the ball direction speed it up
+	if (player->velocity()*dir.y > 0)
+		newSpeed += 0.2f;
+	else if (player->velocity()*dir.y < 0)
+		newSpeed -= 0.2f;
+
+	double nAngle = dir.angle() + DK_PI*0.5;
+	double magic = (double)qrand() / RAND_MAX * 0.5 - 0.25;
+
+	dir.rotate((nAngle*2)+magic);
+
+	// change the angle if the ball becomes horizontal
+	if (DkMath::distAngle(dir.angle(), 0.0) > 0.01)
+		dir.rotate(0.7);
+
+	fixDirection(dir);
+
+	return newSpeed;
+}
+
+bool DkBall::collision(const QRect& player, const DkVector& nextCenter) const {
+
+	// first check if be cross the player line
+	float pc = (float)player.center().x();
+	float cx = (float)mRect.center().x();
+
+	if ((cx - pc)  * (nextCenter.x - pc) > 0)
+		return false;
+
+	if (qMin((float)mRect.center().y(), nextCenter.y) < player.top() || 
+		qMax((float)mRect.center().y(), nextCenter.y) > player.bottom())
+		return false;
+
+	return true;
+}
+
 void DkBall::setDirection(const DkVector& dir) {
-	
+
 	mDirection = dir;
+	fixDirection(mDirection);
+}
 
+void DkBall::fixDirection(DkVector& dir) const {
+	
 	// check angle
-	fixAngle();
+	fixAngle(dir);
 
-	if (mDirection.norm() > mMaxSpeed) {
-		mDirection.normalize();
-		mDirection *= (float)mMaxSpeed;
+	if (dir.norm() > mMaxSpeed) {
+		dir.normalize();
+		dir *= (float)mMaxSpeed;
 	}
 	else if (mDirection.norm() < mMinSpeed) {
-		mDirection.normalize();
-		mDirection *= (float)mMinSpeed;
+		dir.normalize();
+		dir *= (float)mMinSpeed;
 	}
 }
 
-void DkBall::fixAngle() {
+void DkBall::fixAngle(DkVector& dir) const {
 
-	double angle = mDirection.angle();
+	double angle = dir.angle();
 	double range = DK_PI / 5.0;
 	double sign = angle > 0 ? 1.0 : -1.0;
 	angle = abs(angle);
@@ -732,7 +808,7 @@ void DkBall::fixAngle() {
 	}
 
 	if (newAngle != 0.0) {
-		mDirection.rotate(mDirection.angle() - (newAngle*sign));
+		dir.rotate(mDirection.angle() - (newAngle*sign));
 		//qDebug() << "angle: " << angle << " new angle: " << newAngle;
 	}
 }

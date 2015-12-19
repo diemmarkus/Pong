@@ -79,12 +79,24 @@ public:
 	void setPlayer2Name(const QString& name);
 	QString player2Name() const;
 
+	int player1Pin() const;
+	int player2Pin() const;
+	int speedPin() const;
+
 	float playerRatio() const;
+
+	float speed() const;
 
 protected:
 	QRect mField;
 	int mUnit = 10;
 	int mTotalScore = 10;
+
+	int mPlayer1Pin = 0;
+	int mPlayer2Pin = 3;
+	int mSpeedPin = 5;
+
+	float mSpeed = 5.0f;
 
 	QColor mBgCol = QColor(0,0,0,100);
 	QColor mFgCol = QColor(255,255,255);
@@ -119,14 +131,17 @@ public:
 
 	void setName(const QString& name);
 	QString name() const;
+
 	void setPos(int pos);
+
+	int velocity() const;
 
 signals:
 	void updatePaint() const;
 
 protected:
-	int mSpeed;
-	int mVelocity;
+	int mSpeed = 0;
+	int mVelocity = 0;
 
 	int mScore = 0;
 	int mPos = INT_MAX;
@@ -152,16 +167,21 @@ public:
 	bool move(DkPongPlayer* player1, DkPongPlayer* player2);
 
 protected:
-	int mMinSpeed;
-	int mMaxSpeed;
+	int mMinSpeed = 5;
+	int mMaxSpeed = 50;
+	float mSpeed = 3.0f;
 
 	DkVector mDirection;
 	QRect mRect;
+	int mRally = 0;
 
 	QSharedPointer<DkPongSettings> mS;
 
-	void fixAngle();
+	void fixAngle(DkVector& dir) const;
+	void fixDirection(DkVector& dir) const;
 	void setDirection(const DkVector& dir);
+	bool collision(const QRect& player, const DkVector& nextCenter) const;
+	float changeDirPlayer(const DkPongPlayer* layer, DkVector& dir) const;
 };
 
 class DllExport DkScoreLabel : public QLabel {
@@ -192,11 +212,6 @@ public:
 	DkPongPlayer* player2();
 
 	void start();
-
-	enum {
-		player_1 = 0,
-		player_2 = 3,
-	};
 
 public slots:
 	void gameLoop();
