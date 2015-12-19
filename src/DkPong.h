@@ -73,7 +73,10 @@ public:
 
 	void writeSettings();
 
+	void setPlayer1Name(const QString& name);
 	QString player1Name() const;
+
+	void setPlayer2Name(const QString& name);
 	QString player2Name() const;
 
 	float playerRatio() const;
@@ -114,6 +117,7 @@ public:
 	void resetScore();
 	int score() const;
 
+	void setName(const QString& name);
 	QString name() const;
 	void setPos(int pos);
 
@@ -184,6 +188,10 @@ public:
 	QSharedPointer<DkPongSettings> settings() const;
 
 	DkArduinoController* getController();
+	DkPongPlayer* player1();
+	DkPongPlayer* player2();
+
+	void start();
 
 	enum {
 		player_1 = 0,

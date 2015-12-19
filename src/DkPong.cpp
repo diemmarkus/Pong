@@ -113,8 +113,16 @@ void DkPongSettings::writeSettings() {
 	qDebug() << "settings written...";
 }
 
+void DkPongSettings::setPlayer1Name(const QString& name) {
+	mPlayer1Name = name;
+}
+
 QString DkPongSettings::player1Name() const {
 	return mPlayer1Name;
+}
+
+void DkPongSettings::setPlayer2Name(const QString& name) {
+	mPlayer2Name = name;
 }
 
 QString DkPongSettings::player2Name() const {
@@ -232,6 +240,10 @@ int DkPongPlayer::score() const {
 	return mScore;
 }
 
+void DkPongPlayer::setName(const QString & name) {
+	mPlayerName = name;
+}
+
 QString DkPongPlayer::name() const {
 	return mPlayerName;
 }
@@ -322,9 +334,6 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 
 	connect(mEventLoop, SIGNAL(timeout()), this, SLOT(gameLoop()));
 	connect(mCountDownTimer, SIGNAL(timeout()), this, SLOT(countDown()));
-
-	initGame();
-	pauseGame();
 }
 
 void DkPongPort::initGame() {
@@ -345,6 +354,14 @@ void DkPongPort::initGame() {
 	qDebug() << mPlayer1->score() << ":" << mPlayer2->score();
 
 	update();
+}
+
+void DkPongPort::start() {
+	initGame();
+	pauseGame();
+
+	if (mController)
+		mController->start();
 }
 
 void DkPongPort::togglePause() {
@@ -383,6 +400,14 @@ DkPongPort::~DkPongPort() {
 
 DkArduinoController* DkPongPort::getController() {
 	return mController;
+}
+
+DkPongPlayer * DkPongPort::player1() {
+	return mPlayer1;
+}
+
+DkPongPlayer * DkPongPort::player2() {
+	return mPlayer2;
 }
 
 QSharedPointer<DkPongSettings> DkPongPort::settings() const {

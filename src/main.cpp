@@ -60,6 +60,17 @@ int main(int argc, char** argv) {
 		QObject::tr("com"));
 	parser.addOption(comOpt);
 
+	// set player name
+	QCommandLineOption p1NameOpt(QStringList() << "p1" << "player1",
+		QObject::tr("Player 1 <name>."),
+		QObject::tr("<name>"));
+	parser.addOption(p1NameOpt);
+
+	// set player name
+	QCommandLineOption p2NameOpt(QStringList() << "p2" << "player2",
+		QObject::tr("Player 2 <name>."),
+		QObject::tr("<name>"));
+	parser.addOption(p2NameOpt);
 
 	parser.process(app);
 	// CMD parser --------------------------------------------------------------------
@@ -73,11 +84,23 @@ int main(int argc, char** argv) {
 
 	pong::DkArduinoController* controller = pw->viewport()->getController();
 
+	// set COM port
 	if (!parser.value(comOpt).isEmpty()) {
 		controller->setComPort(parser.value(comOpt));
 	}
 
-	controller->start();
+	if (!parser.value(p1NameOpt).isEmpty()) {
+		pw->viewport()->player1()->setName(parser.value(p1NameOpt));
+		qDebug() << "player:" << parser.value(p1NameOpt);
+	}
+
+	if (!parser.value(p2NameOpt).isEmpty()) {
+		pw->viewport()->player2()->setName(parser.value(p2NameOpt));
+		qDebug() << "player:" << parser.value(p2NameOpt);
+	}
+
+
+	pw->viewport()->start();
 
 	// run pong
 	int rVal = app.exec();
