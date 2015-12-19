@@ -61,16 +61,22 @@ int main(int argc, char** argv) {
 	parser.addOption(comOpt);
 
 	// set player name
-	QCommandLineOption p1NameOpt(QStringList() << "p1" << "player1",
+	QCommandLineOption p1NameOpt("player1",
 		QObject::tr("Player 1 <name>."),
 		QObject::tr("<name>"));
 	parser.addOption(p1NameOpt);
 
 	// set player name
-	QCommandLineOption p2NameOpt(QStringList() << "p2" << "player2",
+	QCommandLineOption p2NameOpt("player2",
 		QObject::tr("Player 2 <name>."),
 		QObject::tr("<name>"));
 	parser.addOption(p2NameOpt);
+
+	// set max score
+	QCommandLineOption scoreOpt(QStringList() << "s" << "score",
+		QObject::tr("Set maximum <score>."),
+		QObject::tr("<score>"));
+	parser.addOption(scoreOpt);
 
 	parser.process(app);
 	// CMD parser --------------------------------------------------------------------
@@ -89,16 +95,18 @@ int main(int argc, char** argv) {
 		controller->setComPort(parser.value(comOpt));
 	}
 
-	if (!parser.value(p1NameOpt).isEmpty()) {
+	if (!parser.value(p1NameOpt).isEmpty())
 		pw->viewport()->player1()->setName(parser.value(p1NameOpt));
-		qDebug() << "player:" << parser.value(p1NameOpt);
-	}
 
-	if (!parser.value(p2NameOpt).isEmpty()) {
+	if (!parser.value(p2NameOpt).isEmpty())
 		pw->viewport()->player2()->setName(parser.value(p2NameOpt));
-		qDebug() << "player:" << parser.value(p2NameOpt);
-	}
 
+	bool ok = false;
+	int totalScore = parser.value(scoreOpt).toInt(&ok);
+	if (ok)
+		pw->viewport()->settings()->setTotalScore(totalScore);
+	else if (parser.isSet(scoreOpt))
+		qInfo() << scoreOpt.names()[0] << "must be a number";
 
 	pw->viewport()->start();
 

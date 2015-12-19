@@ -334,6 +334,10 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 
 	connect(mEventLoop, SIGNAL(timeout()), this, SLOT(gameLoop()));
 	connect(mCountDownTimer, SIGNAL(timeout()), this, SLOT(countDown()));
+
+	initGame();
+	pauseGame();
+
 }
 
 void DkPongPort::initGame() {
@@ -351,14 +355,15 @@ void DkPongPort::initGame() {
 		mP2Score->setText(QString::number(mPlayer2->score()));
 	}
 
-	qDebug() << mPlayer1->score() << ":" << mPlayer2->score();
-
 	update();
 }
 
 void DkPongPort::start() {
-	initGame();
-	pauseGame();
+
+	mP1Score->setText(mPlayer1->name());
+	mP2Score->setText(mPlayer2->name());
+	qDebug() << "player name" << mPlayer1->name();
+	update();
 
 	if (mController)
 		mController->start();
