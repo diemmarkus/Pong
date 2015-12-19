@@ -41,7 +41,7 @@
 
 //#define int64 long long;
 #include <sstream>
-#define CV_PI 3.141592653589793238462643383279
+#define DK_PI 3.141592653589793238462643383279
 
 #ifndef DllExport
 #ifdef DK_DLL_EXPORT

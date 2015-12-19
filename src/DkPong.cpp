@@ -617,7 +617,7 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 		//qDebug() << "collision...";
 	}
 
-	double nAngle = dir.angle() + CV_PI*0.5;//DkMath::normAngleRad(dir.angle()+CV_PI*0.5, 0, CV_PI*0.5);
+	double nAngle = dir.angle() + DK_PI*0.5;//DkMath::normAngleRad(dir.angle()+DK_PI*0.5, 0, DK_PI*0.5);
 	double magic = (double)qrand() / RAND_MAX * 0.5 - 0.25;
 
 	// player collision
@@ -689,16 +689,16 @@ void DkBall::setDirection(const DkVector& dir) {
 void DkBall::fixAngle() {
 
 	double angle = mDirection.angle();
-	double range = CV_PI / 5.0;
+	double range = DK_PI / 5.0;
 	double sign = angle > 0 ? 1.0 : -1.0;
 	angle = abs(angle);
 	double newAngle = 0.0;
 
-	if (angle < CV_PI*0.5 && angle > CV_PI*0.5 - range) {
-		newAngle = CV_PI*0.5 - range;
+	if (angle < DK_PI*0.5 && angle > DK_PI*0.5 - range) {
+		newAngle = DK_PI*0.5 - range;
 	}
-	else if (angle > CV_PI*0.5 && angle < CV_PI*0.5 + range) {
-		newAngle = CV_PI*0.5 + range;
+	else if (angle > DK_PI*0.5 && angle < DK_PI*0.5 + range) {
+		newAngle = DK_PI*0.5 + range;
 	}
 
 	if (newAngle != 0.0) {

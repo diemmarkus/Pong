@@ -38,27 +38,12 @@
 #pragma warning(disable: 4127)		// no 'conditional expression is constant' if qDebug() messages are removed
 #endif
 
-#ifdef WITH_OPENCV
-
-#ifdef WIN32
-#pragma warning(disable: 4996)
-#endif
-
-#ifdef DISABLE_LANCZOS // opencv 2.1.0 is used, does not have opencv2 includes
-	#include "opencv/cv.h"
-#else
-	#include "opencv2/core/core.hpp"
-#endif
-#else
-
 //#define int64 long long;
-#define CV_PI 3.141592653589793238462643383279
+#define DK_PI 3.141592653589793238462643383279
 
 int cvRound(float num);
 int cvCeil(float num);
 int cvFloor(float num);
-
-#endif
 
 #define DK_DEG2RAD	0.017453292519943
 #define DK_RAD2DEG 	57.295779513082323
@@ -160,9 +145,9 @@ public:
 			return angle;
 
 		while (angle < 0)
-			angle += 2*CV_PI;
-		while (angle >= 2*CV_PI)
-			angle -= 2*CV_PI;
+			angle += 2*DK_PI;
+		while (angle >= 2*DK_PI)
+			angle -= 2*DK_PI;
 
 		return angle;
 	}
@@ -223,9 +208,9 @@ public:
 			return angle;
 
 		while (angle < 0)
-			angle += 2*(float)CV_PI;
-		while (angle >= 2.0*CV_PI)
-			angle -= 2*(float)CV_PI;
+			angle += 2*(float)DK_PI;
+		while (angle >= 2.0*DK_PI)
+			angle -= 2*(float)DK_PI;
 
 		return angle;
 	}
@@ -251,7 +236,7 @@ public:
 
 		double angle = std::abs(nAngle1 - nAngle2);
 
-		return (angle > CV_PI) ? 2*CV_PI - angle : angle;
+		return (angle > DK_PI) ? 2*DK_PI - angle : angle;
 	}
 
 	/**
@@ -304,7 +289,7 @@ public:
 	 **/
 	static float getGaussian(float sigma, float x) {
 
-		return 1/sqrt(2*(float)CV_PI*sigma*sigma) * exp(-(x*x)/(2*sigma*sigma));
+		return 1/sqrt(2*(float)DK_PI*sigma*sigma) * exp(-(x*x)/(2*sigma*sigma));
 	}
 
 	template <typename numFmt>
@@ -358,35 +343,6 @@ public:
 		this->x = x;
 		this->y = y;
 	};
-
-#ifdef WITH_OPENCV
-	/**
-	 * Initializes an object by means of the OpenCV size.
-	 * @param s the size.
-	 **/
-	DkVector(cv::Size s) {
-		this->width  = (float)s.width;
-		this->height = (float)s.height;
-	};
-
-	/**
-	 * Initializes a Vector by means of a OpenCV Point.
-	 * @param p the point
-	 **/
-	DkVector(cv::Point2f p) {
-		this->x = p.x;
-		this->y = p.y;
-	};
-
-	/**
-	 * Initializes a Vector by means of a OpenCV Point.
-	 * @param p the point
-	 **/
-	DkVector(cv::Point p) {
-		this->x = (float)p.x;
-		this->y = (float)p.y;
-	};
-#endif
 
 	/**
 	 * Initializes the vector by means of a QPointF.
@@ -845,67 +801,6 @@ public:
 		return QPointF(x, y);
 	};
 
-#ifdef WITH_OPENCV
-	/**
-	 * Convert DkVector to cv::Point.
-	 * @return a cv::Point having the vector's coordinates.
-	 **/
-	virtual cv::Point getCvPoint32f() const {
-
-		return cv::Point_<float>(x, y);
-	};
-
-	/**
-	 * Convert DkVector to cv::Point.
-	 * The vectors coordinates are rounded.
-	 * @return a cv::Point having the vector's coordinates.
-	 **/
-	virtual cv::Point getCvPoint() const {
-
-		return cv::Point(qRound(x), qRound(y));
-	};
-
-	/**
-	 * Convert DkVector to cv::Size.
-	 * The vector coordinates are rounded.
-	 * @return a cv::Size having the vector's coordinates.
-	 **/
-	cv::Size getCvSize() const {
-
-		return cv::Size(qRound(width), qRound(height));
-	}
-#endif
-};
-
-class DllExport DkRotatingRect {
-
-public:
-	DkRotatingRect(QRectF rect = QRectF());
-	virtual ~DkRotatingRect();
-
-	friend std::ostream& operator<<(std::ostream& s, DkRotatingRect& r) {
-		return r.put(s);
-	};
-
-	bool isEmpty() const;
-	void setAllCorners(QPointF &p);
-	DkVector getDiagonal(int cIdx) const;
-	QCursor cpCursor(int idx);
-	void updateCorner(int cIdx, QPointF nC, DkVector oldDiag = DkVector());
-	const QPolygonF& getPoly() const;
-	void setPoly(QPolygonF &poly);
-	QPolygonF getClosedPoly();
-	QPointF getCenter() const;
-	void setCenter(const QPointF& center);
-	double getAngle() const;
-	float getAngleDeg() const;
-	void getTransform(QTransform& tForm, QPointF& size) const;
-
-protected:
-
-	virtual std::ostream& put(std::ostream& s);
-
-	QPolygonF rect;
 };
 
 }
