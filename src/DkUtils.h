@@ -39,23 +39,9 @@
 	#include <time.h>
 #endif
 
-#ifdef WITH_OPENCV
-
-#ifdef Q_OS_WIN
-#pragma warning(disable: 4996)
-#endif
-
-#ifdef DISABLE_LANCZOS // opencv 2.1.0 is used, does not have opencv2 includes
-	#include "opencv/cv.h"
-#else
-	#include "opencv2/core/core.hpp"
-#endif
-#else
-
 //#define int64 long long;
 #include <sstream>
 #define CV_PI 3.141592653589793238462643383279
-#endif
 
 #ifndef DllExport
 #ifdef DK_DLL_EXPORT
@@ -75,7 +61,6 @@
 #endif
 
 // Qt defines
-class QComboBox;
 class QColor;
 class QUrl;
 
@@ -84,46 +69,12 @@ namespace pong {
 // nomacs defines
 class TreeItem;
 
-enum morphTypes {DK_ERODE=0, DK_DILATE};
-enum DebugLevel {DK_NONE=0,DK_WARNING, DK_MODULE, DK_DEBUG_A, DK_DEBUG_B, DK_DEBUG_C, DK_DEBUG_ALL};
-enum SpeedLebel {DK_NO_SPEED_UP=0, DK_SPEED_UP, DK_APPROXIMATE};
-
-
 /**
  * This class contains general functions which are useful.
  **/
 class DllExport DkUtils {
 
-private:
-	static int debugLevel;
-
 public:
-
-
-#ifdef WIN32
-	
-	/**
-	 * Logical string compare function.
-	 * This function is used to sort:
-	 * a1.png
-	 * a2.png
-	 * a10.png
-	 * instead of:
-	 * a1.png
-	 * a10.png
-	 * a2.png
-	 * @param lhs left string
-	 * @param rhs right string
-	 * @return bool true if left string < right string
-	 **/ 
-	static bool wCompLogic(const std::wstring & lhs, const std::wstring & rhs);
-#endif
-
-	static bool compLogicQString(const QString & lhs, const QString & rhs);
-
-	static bool compFilename(const QFileInfo & lhf, const QFileInfo & rhf);
-
-	static bool compFilenameInv(const QFileInfo & lhf, const QFileInfo & rhf);
 
 	static bool compDateCreated(const QFileInfo& lhf, const QFileInfo& rhf);
 
@@ -135,175 +86,11 @@ public:
 
 	static bool compRandom(const QFileInfo& lhf, const QFileInfo& rhf);
 
-	static bool naturalCompare(const QString& s1, const QString& s2, Qt::CaseSensitivity cs = Qt::CaseSensitive);
-
-	static QString getLongestNumber(const QString& str, int startIdx = 0);
-
-	static void addLanguages(QComboBox* langCombo, QStringList& languages);
-
-	/**
-	 * Sleeps n ms.
-	 * This function is based on the QTest::qSleep(int ms)
-	 * @param ms time to sleep
-	 **/ 
-	static void mSleep(int ms);
-
-	/**
-	 * Fast file exists method.
-	 * This function seems to be a bit unnecessary, however
-	 * at least windows has long (> 10 sec) timeouts if a
-	 * network drive is disconnected and you want to find
-	 * a file on that network. This function calls the normal
-	 * file.exists() but returns false if a timeout > waitMs 
-	 * is reached.
-	 * @param file the file to check
-	 * @param waitMs time in milli seconds to wait for file.exists()
-	 * @return bool true if the file exists
-	 **/ 
-	static bool exists(const QFileInfo& file, int waitMs = 10);
 	static bool checkFile(const QFileInfo& file);
 	static QFileInfo urlToLocalFile(const QUrl& url);
 	static QString colorToString(const QColor& col);
 	static QString readableByte(float bytes);
 	static QStringList filterStringList(const QString& query, const QStringList& list);
-	static bool moveToTrash(const QString& filePath);
-
-#ifdef WITH_OPENCV
-	/**
-	 * Prints a matrix to the standard output.
-	 * This is especially useful for copy and pasting e.g.
-	 * histograms to matlab and visualizing them there.
-	 * @param src an image CV_32FC1.
-	 * @param varName the variable name for Matlab.
-	 **/
-	static void printMat(const cv::Mat src, const char* varName) {
-
-		if (src.depth() != CV_32FC1) {
-			//qDebug() << "I could not visualize the mat: " << QString::fromAscii(varName);
-			return;
-		}
-
-		printf("%s = %s", varName, printMat(src).c_str());
-
-	}
-
-	/**
-	 * Prints a matrix to the standard output.
-	 * This is especially useful for copy and pasting e.g.
-	 * histograms to matlab and visualizing them there.
-	 * @param src an image CV_32FC1.
-	 * @param varName the variable name for Matlab.
-	 **/
-	static std::string printMat(const cv::Mat src) {
-
-		if (src.depth() != CV_32FC1) {
-
-			//qDebug() << "I could not visualize the mat: " << QString::fromStdString(DkUtils::getMatInfo(src));
-			return "";
-		}
-
-		std::string msg = " [";	// matlab...
-
-		int cnt = 0;
-		
-		for (int rIdx = 0; rIdx < src.rows; rIdx++) {
-			
-			const float* srcPtr = src.ptr<float>(rIdx);
-			
-			for (int cIdx = 0; cIdx < src.cols; cIdx++, cnt++) {
-							
-
-				msg += DkUtils::stringify(srcPtr[cIdx], 3);
-
-				msg += (cIdx < src.cols-1) ? " " : "; "; // next row matlab?
-				
-				if (cnt % 7 == 0)
-					msg += "...\n";
-			}
-
-		}
-		msg += "];\n";
-
-		return msg;
-	}
-
-	/**
-	 * Prints the cv::Mat's attributes to the standard output.
-	 * The cv::Mat's attributes are: size, depth, number of channels and
-	 * dynamic range.
-	 * @param img an image (if it has more than one channel, the dynamic range
-	 * is not displayed)
-	 * @param varname the name of the matrix
-	 **/
-	static void getMatInfo(cv::Mat img, std::string varname) {
-
-		printf("%s: %s\n", varname.c_str(), getMatInfo(img).c_str());
-	}
-
-	/**
-	 * Converts the cv::Mat's attributes to a string.
-	 * The cv::Mat's attributes are: size, depth, number of channels and
-	 * dynamic range.
-	 * @param img an image (if it has more than one channel, the dynamic range
-	 * is not converted).
-	 * @return a string with the cv::Mat's attributes.
-	 **/
-	static std::string getMatInfo(cv::Mat img) {
-
-		std::string info = "\n\nimage info:\n";
-
-		if (img.empty()) {
-			info += "   <empty image>\n";
-			return info;
-		}
-
-		info += "   " + DkUtils::stringify(img.rows) + " x " + DkUtils::stringify(img.cols) + " (rows x cols)\n";
-		info += "   channels: " + DkUtils::stringify(img.channels()) + "\n";
-
-		int depth = img.depth();
-		info += "   depth: ";
-		switch (depth) {
-		case CV_8U:
-			info += "CV_8U";
-			break;
-		case CV_32F:
-			info += "CV_32F";
-			break;
-		case CV_16S:
-			info += "CV_16S";
-			break;
-		case CV_32S:
-			info += "CV_32S";
-			break;
-		case CV_64F:
-			info += "CV_64F";
-			break;
-		default:
-			info += "unknown";
-			break;
-		}
-
-		if (img.channels() == 1) {
-			info += "\n   dynamic range: ";
-
-			double min, max;
-			minMaxLoc(img, &min, &max);
-			info += "[" + DkUtils::stringify(min) + " " + DkUtils::stringify(max) + "]\n";
-		}
-		else if (img.channels() > 1) {
-			info += "\n   dynamic range: ";
-
-			double min, max;
-			minMaxLoc(img, &min, &max);
-			info += "[" + DkUtils::stringify(min) + " " + DkUtils::stringify(max) + "]\n";
-		}
-		else
-			info += "\n";
-
-		return info;
-
-	}
-#endif
 
 	/**
 	 * Appends an attribute name to the filename given.
@@ -412,74 +199,6 @@ public:
 		return strR;
 	};
 
-	/**
-	 * Sets the actual debug level.
-	 * @param l the debug level of the application.
-	 **/
-	static void setDebug(int l) {
-		debugLevel = l;
-	};
-
-	/**
-	 * Returns the current debug level.
-	 * @return the debug level of the application.
-	 **/
-	static int getDebug() {
-		return debugLevel;
-	};
-
-};
-
-class DkMemory {
-
-public:
-
-	static double getTotalMemory();
-	static double getFreeMemory();
-};
-
-class DkFileNameConverter {
-
-public:
-	DkFileNameConverter(const QString& fileName, const QString& pattern, int cIdx);
-
-	QString getConvertedFileName();
-
-protected:
-	QString resolveFilename(const QString& tag) const;
-	QString resolveIdx(const QString& tag) const;
-	QString resolveExt(const QString& tag) const;
-	int getIntAttribute(const QString& tag, int idx = 1) const;
-
-	QString mFileName;
-	QString mPattern;
-	int mCIdx;
-};
-
-// from: http://qt-project.org/doc/qt-4.8/itemviews-simpletreemodel.html
-class TreeItem {
-
-public:
-	TreeItem(const QVector<QVariant> &data, TreeItem *parent = 0);
-	~TreeItem();
-
-	void appendChild(TreeItem *child);
-
-	TreeItem *child(int row);
-	int childCount() const;
-	int columnCount() const;
-	QVariant data(int column) const;
-	void setData(const QVariant& value, int column);
-	int row() const;
-	TreeItem* parent() const;
-	TreeItem* find(const QVariant& value, int column);
-	void setParent(TreeItem* parent);
-	void clear();
-
-private:
-	QVector<TreeItem*> childItems;
-	QVector<QVariant> itemData;
-	TreeItem *parentItem;
 };
 
 };
