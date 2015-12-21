@@ -757,13 +757,16 @@ float DkBall::changeDirPlayer(const DkPongPlayer* player, DkVector& dir) const {
 
 bool DkBall::collision(const QRect& player, const DkVector& nextCenter) const {
 
+	if (player.intersects(mRect))
+		return true;
+
 	// first check if be cross the player line
 	float pc = (float)player.center().x();
 	float cx = (float)mRect.center().x();
 
 	if ((cx - pc)  * (nextCenter.x - pc) > 0)
 		return false;
-
+	
 	if (qMin((float)mRect.center().y(), nextCenter.y) < player.top() || 
 		qMax((float)mRect.center().y(), nextCenter.y) > player.bottom())
 		return false;
