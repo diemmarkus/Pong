@@ -23,7 +23,6 @@ option(WITH_GESTURE "Compile with Kinect Gestures" ON)
 # find Qt
 unset(QT_QTCORE_LIBRARY CACHE)
 unset(QT_QTGUI_LIBRARY CACHE)
-unset(QT_QTNETWORK_LIBRARY CACHE)
 unset(QT_QTWEBKIT_LIBRARY CACHE)
 unset(QT_QTMAIN_LIBRARY CACHE)
 
@@ -40,16 +39,17 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # message(STATUS "qmake path: ${QT_QMAKE_EXECUTABLE}")
 GET_FILENAME_COMPONENT(QT_QMAKE_PATH ${QT_QMAKE_EXECUTABLE} PATH)
-set(CMAKE_PREFIX_PATH ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5Widgets ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5LinguistTools)
+set(CMAKE_PREFIX_PATH ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5Widgets ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5Multimedia ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5Network ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5LinguistTools)
 # message(STATUS "path: ${QT_QMAKE_PATH}")
 # message(STATUS "cmake path: ${CMAKE_PREFIX_PATH}")
 
 unset(Qt5Widgets_FOUND CACHE)
 find_package(Qt5Widgets)
-# find_package(Qt5Concurrent)
+find_package(Qt5Multimedia)
+find_package(Qt5Network)
 
-set(QT_INCLUDES ${Qt5Widgets_INCLUDE_DIRS} ${Qt5LinguistTools_INCLUDE_DIRS} ${Qt5Concurrent_INCLUDE_DIRS})
-set(QT_LIBRARIES ${Qt5Widgets_LIBRARIES} ${Qt5Concurrent_LIBRARIES} ${Qt5Core_LIBARIES})
+set(QT_INCLUDES ${Qt5Widgets_INCLUDE_DIRS} ${Qt5Multimedia_INCLUDE_DIRS} ${Qt5LinguistTools_INCLUDE_DIRS} ${Qt5Concurrent_INCLUDE_DIRS})
+set(QT_LIBRARIES ${Qt5Widgets_LIBRARIES} ${Qt5Multimedia_INCLUDE_DIRS} ${Qt5Concurrent_LIBRARIES} ${Qt5Core_LIBARIES})
 if (NOT Qt5Widgets_FOUND)
 	message(FATAL_ERROR "Qt5Widgets not found. Check your QT_QMAKE_EXECUTABLE path and set it to the correct location")
 endif()
@@ -113,8 +113,8 @@ add_library(${DLL_NAME} SHARED ${INFOS_SOURCES} ${INFOS_UI} ${INFOS_MOC_SRC} ${I
 target_link_libraries(${DLL_NAME} ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY}  ${QT_QTMAIN_LIBRARY} ${VERSION_LIB}) 
 add_dependencies(${BINARY_NAME} ${DLL_NAME})
 
-qt5_use_modules(${BINARY_NAME} Widgets Gui PrintSupport Concurrent)
-qt5_use_modules(${DLL_NAME} Widgets Gui PrintSupport Concurrent)
+qt5_use_modules(${BINARY_NAME} Widgets Multimedia Network Gui Concurrent)
+qt5_use_modules(${DLL_NAME} Widgets Multimedia Network Gui Concurrent)
 
 SET(CMAKE_SHARED_LINKER_FLAGS_REALLYRELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /SUBSYSTEM:WINDOWS /LARGEADDRESSAWARE") # /subsystem:windows does not work due to a bug in cmake (see http://public.kitware.com/Bug/view.php?id=12566)
 
@@ -129,7 +129,7 @@ set_target_properties(${DLL_NAME} PROPERTIES LINK_FLAGS_DEBUG "${CMAKE_EXE_LINKE
 set_target_properties(${DLL_NAME} PROPERTIES DEBUG_OUTPUT_NAME ${DLL_NAME}d)
 set_target_properties(${DLL_NAME} PROPERTIES RELEASE_OUTPUT_NAME ${DLL_NAME})
 
-set(QTLIBLIST Qt5Core Qt5Gui Qt5Widgets Qt5PrintSupport Qt5Concurrent Qt5OpenGL)
+set(QTLIBLIST Qt5Core Qt5Gui Qt5Widgets Qt5Multimedia Qt5Network Qt5Concurrent Qt5OpenGL)
 
 foreach(qtlib ${QTLIBLIST})
 	get_filename_component(QT_DLL_PATH_tmp ${QT_QMAKE_EXECUTABLE} PATH)

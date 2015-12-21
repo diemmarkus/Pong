@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/pong">
       <file>stylesheet.css</file>
+      <file>audio/player1-collision.wav</file>
+      <file>audio/player2-collision.wav</file>
     </qresource>
 </RCC>

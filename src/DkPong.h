@@ -47,6 +47,8 @@
 #endif
 #endif
 
+class QSound;
+
 namespace pong {
 
 class DkArduinoController;
@@ -116,7 +118,7 @@ class DllExport DkPongPlayer : public QObject {
 	Q_OBJECT
 
 public:
-	DkPongPlayer(const QString& playerName = QObject::tr("Anonymous"), QSharedPointer<DkPongSettings> settings = QSharedPointer<DkPongSettings>(new DkPongSettings()), QObject* parent = 0);
+	DkPongPlayer(const QString& playerName = QObject::tr("Anonymous"), const QString& soundFile = ":/pong/audio/player1-collision.wav", QSharedPointer<DkPongSettings> settings = QSharedPointer<DkPongSettings>(new DkPongSettings()), QObject* parent = 0);
 
 	void reset(const QPoint& pos);
 	QRect rect() const;
@@ -137,6 +139,8 @@ public:
 
 	void setPos(float pos);
 
+	void sound() const;
+
 	int velocity() const;
 
 signals:
@@ -149,6 +153,7 @@ protected:
 	int mScore = 0;
 	int mPos = INT_MAX;
 	float mControllerPos = -1.0f;
+	QSound* mSound = 0;
 
 	QSharedPointer<DkPongSettings> mS;
 	QRect mRect;

@@ -38,6 +38,7 @@
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QSettings>
+#include <QSound>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace pong {
@@ -198,14 +199,17 @@ void DkPongSettings::loadSettings() {
 }
 
 // DkPlayer --------------------------------------------------------------------
-DkPongPlayer::DkPongPlayer(const QString& playerName, QSharedPointer<DkPongSettings> settings, QObject* parent) : QObject(parent) {
+DkPongPlayer::DkPongPlayer(const QString& playerName, const QString& soundFile, QSharedPointer<DkPongSettings> settings, QObject* parent) : QObject(parent) {
 
 	mPlayerName = playerName;
 	mS = settings;
 	mSpeed = 0;
 	mPos = INT_MAX;
-
 	mRect = QRect(QPoint(), QSize(settings->unit(), 2*settings->unit()));
+
+	// sound
+	mSound = new QSound(soundFile, this);
+
 }
 
 void DkPongPlayer::reset(const QPoint& pos) {
@@ -231,6 +235,13 @@ void DkPongPlayer::setHeight(int newHeight) {
 
 int DkPongPlayer::velocity() const {
 	return mVelocity;
+}
+
+void DkPongPlayer::sound() const {
+
+	if (mSound)
+		mSound->play();
+
 }
 
 void DkPongPlayer::move() {
@@ -358,8 +369,8 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	mPlayerSpeed = qRound(mS->field().width()*0.007);
 
 	mBall = DkBall(mS);
-	mPlayer1 = new DkPongPlayer(mS->player1Name(), mS);
-	mPlayer2 = new DkPongPlayer(mS->player2Name(), mS);
+	mPlayer1 = new DkPongPlayer(mS->player1Name(), ":/pong/audio/player1-collision.wav", mS);
+	mPlayer2 = new DkPongPlayer(mS->player2Name(), ":/pong/audio/player2-collision.wav",  mS);
 
 	mP1Score = new DkScoreLabel(Qt::AlignRight, this, mS);
 	mP2Score = new DkScoreLabel(Qt::AlignLeft, this, mS);
@@ -737,7 +748,7 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 
 	// check minimum speed 
 	if (mSpeed < mMinSpeed)
-		mSpeed = mMinSpeed;
+		mSpeed = (float)mMinSpeed;
 
 	DkVector dir = mDirection;
 	dir.normalize();
@@ -756,13 +767,14 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 	if (dir.x < 0 && collision(player1->rect(), nextCenter)) {
 		mSpeed *= changeDirPlayer(player1, dir);
 		nextCenter = DkVector(mRect.center()) + dir;
+		player1->sound();
 		mRally++;
 		qDebug() << "rally speed: " << qRound(mRally/10.0);
 	}
 	else if (dir.x > 0 && collision(player2->rect(), nextCenter)) {
 		mSpeed *= changeDirPlayer(player2, dir);
 		nextCenter = DkVector(mRect.center()) + dir;
-		
+		player2->sound();
 		mRally++;
 		qDebug() << "rally speed: " << qRound(mRally/10.0);
 	}
