@@ -82,9 +82,11 @@ public:
 	int player1Pin() const;
 	int player2Pin() const;
 	int speedPin() const;
+	int pausePin() const;
 
 	float playerRatio() const;
 
+	void setSpeed(float speed);
 	float speed() const;
 
 protected:
@@ -92,9 +94,10 @@ protected:
 	int mUnit = 10;
 	int mTotalScore = 10;
 
-	int mPlayer1Pin = 0;
-	int mPlayer2Pin = 3;
-	int mSpeedPin = 5;
+	int mPlayer1Pin = 2;
+	int mPlayer2Pin = 4;
+	int mSpeedPin = 1;
+	int mPausePin = 0;
 
 	float mSpeed = 5.0f;
 
@@ -132,7 +135,7 @@ public:
 	void setName(const QString& name);
 	QString name() const;
 
-	void setPos(int pos);
+	void setPos(float pos);
 
 	int velocity() const;
 
@@ -145,7 +148,7 @@ protected:
 
 	int mScore = 0;
 	int mPos = INT_MAX;
-	int mControllerPos = -1;
+	float mControllerPos = -1.0f;
 
 	QSharedPointer<DkPongSettings> mS;
 	QRect mRect;
@@ -164,6 +167,10 @@ public:
 	QRect rect() const;
 	QPoint direction() const;
 
+	void setSpeed(float val);
+	float speed() const;
+
+	void setAnalogueSpeed(float val);
 	bool move(DkPongPlayer* player1, DkPongPlayer* player2);
 
 protected:
@@ -217,7 +224,8 @@ public slots:
 	void gameLoop();
 	void countDown();
 	void controllerUpdate(int controller, int val);
-	
+	void changeSpeed(int val);
+
 protected:
 	virtual void paintEvent(QPaintEvent* event);
 	virtual void resizeEvent(QResizeEvent* event);

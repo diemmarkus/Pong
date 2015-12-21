@@ -111,6 +111,7 @@ void DkPongSettings::writeSettings() {
 	settings.setValue("player1Pin", mPlayer1Pin);
 	settings.setValue("player2Pin", mPlayer2Pin);
 	settings.setValue("speedPin", mSpeedPin);
+	settings.setValue("pausePin", mPausePin);
 
 	settings.setValue("speed", mSpeed);
 
@@ -147,6 +148,14 @@ int DkPongSettings::speedPin() const {
 	return mSpeedPin;
 }
 
+int DkPongSettings::pausePin() const {
+	return mPausePin;
+}
+
+void DkPongSettings::setSpeed(float speed) {
+	mSpeed = speed;
+}
+
 float DkPongSettings::speed() const {
 	return mSpeed;
 }
@@ -172,6 +181,7 @@ void DkPongSettings::loadSettings() {
 	mPlayer1Pin = settings.value("player1Pin", mPlayer1Pin).toInt();
 	mPlayer2Pin = settings.value("player2Pin", mPlayer2Pin).toInt();
 	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
+	mPausePin = settings.value("pausePin", mPausePin).toInt();
 	
 	mSpeed = settings.value("speed", mSpeed).toFloat();
 
@@ -204,7 +214,7 @@ void DkPongPlayer::reset(const QPoint& pos) {
 	if (mControllerPos == -1)
 		mRect.moveCenter(pos);
 	else
-		mRect.moveCenter(QPoint(pos.x(), mControllerPos));
+		mRect.moveCenter(QPoint(pos.x(), qRound(mControllerPos)));
 }
 
 int DkPongPlayer::pos() const {
@@ -229,7 +239,7 @@ void DkPongPlayer::move() {
 
 	// arduino controlls
 	if (mControllerPos != -1) {
-		mRect.moveTop(qRound(mControllerPos/1023.0*(mS->field().height()-mRect.height())));
+		mRect.moveTop(qRound((1-mControllerPos)*(mS->field().height()-mRect.height())));
 		mVelocity = oldTop - mRect.top();
 		return;
 	}
@@ -254,7 +264,7 @@ void DkPongPlayer::setSpeed(int speed) {
 		mPos = INT_MAX;
 }
 
-void DkPongPlayer::setPos(int pos) {
+void DkPongPlayer::setPos(float pos) {
 
 	mControllerPos = pos;
 	move();
@@ -351,9 +361,6 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	mPlayer1 = new DkPongPlayer(mS->player1Name(), mS);
 	mPlayer2 = new DkPongPlayer(mS->player2Name(), mS);
 
-	connect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()));
-	connect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()));
-
 	mP1Score = new DkScoreLabel(Qt::AlignRight, this, mS);
 	mP2Score = new DkScoreLabel(Qt::AlignLeft, this, mS);
 	mLargeInfo = new DkScoreLabel(Qt::AlignHCenter | Qt::AlignBottom, this, mS);
@@ -399,7 +406,6 @@ void DkPongPort::start() {
 
 	mP1Score->setText(mPlayer1->name());
 	mP2Score->setText(mPlayer2->name());
-	qDebug() << "player name" << mPlayer1->name();
 	update();
 
 	if (mController)
@@ -418,6 +424,9 @@ void DkPongPort::pauseGame(bool pause) {
 		mEventLoop->stop();
 		mLargeInfo->setText(tr("PAUSED"));
 		mSmallInfo->setText(tr("Press <SPACE> to start."));
+		connect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
+		connect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
+
 	}
 	else {
 
@@ -431,6 +440,9 @@ void DkPongPort::pauseGame(bool pause) {
 		}
 
 		mEventLoop->start();
+		disconnect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()));
+		disconnect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()));
+
 	}
 
 	mLargeInfo->setVisible(pause);
@@ -458,10 +470,26 @@ QSharedPointer<DkPongSettings> DkPongPort::settings() const {
 
 void DkPongPort::controllerUpdate(int controller, int val) {
 
+	qDebug() << "pin" << controller << "value" << val;
+	// convert value
+	float minV = 0.0f;
+	float maxV = 1023.0f;
+	float v = (val - minV) / (maxV - minV);
+
 	if (controller == mS->player1Pin())
-		mPlayer1->setPos(val);
-	if (controller == mS->player2Pin())
-		mPlayer2->setPos(val);
+		mPlayer1->setPos(v);
+	else if (controller == mS->player2Pin())
+		mPlayer2->setPos(v);
+	else if (controller == mS->speedPin())
+		mBall.setAnalogueSpeed(v);
+	else if (controller == mS->pausePin() && v > 0.5)
+		pauseGame(false);
+	else if (controller == mS->pausePin() && v < 0.1)
+		pauseGame();
+}
+
+void DkPongPort::changeSpeed(int val) {
+	mBall.setSpeed(val + mBall.speed());
 }
 
 void DkPongPort::countDown() {
@@ -620,6 +648,12 @@ void DkPongPort::keyPressEvent(QKeyEvent *event) {
 	if (event->key() == Qt::Key_Space) {
 		togglePause();
 	}
+	if (event->key() == Qt::Key_Plus) {
+		changeSpeed(1);
+	}
+	if (event->key() == Qt::Key_Minus) {
+		changeSpeed(-1);
+	}
 
 	QWidget::keyPressEvent(event);
 }
@@ -655,10 +689,12 @@ DkBall::DkBall(QSharedPointer<DkPongSettings> settings) {
 
 void DkBall::reset() {
 	
+	qDebug() << "speed: " << mS->speed();
+
 	//mDirection = DkVector(3, 0);// DkVector(mUnit*0.15f, mUnit*0.15f);
 	mRect.moveCenter(QPoint(qRound(mS->field().width()*0.5f), qRound(mS->field().height()*0.5f)));
 	mRally = 0;
-	mSpeed = mS->speed();
+	setSpeed(mS->speed());
 }
 
 void DkBall::updateSize() {
@@ -676,7 +712,32 @@ QPoint DkBall::direction() const {
 	return mDirection.toQPointF().toPoint();
 }
 
+void DkBall::setSpeed(float val) {
+	mSpeed = val;
+	mS->setSpeed(mSpeed);	// update settings speed
+
+	if (mSpeed < mMinSpeed)
+		mSpeed = (float)mMinSpeed;
+	if (mSpeed > mMaxSpeed)
+		mSpeed = (float)mMaxSpeed;
+
+	qDebug() << "speed" << mSpeed;
+}
+
+float DkBall::speed() const {
+	return mSpeed;
+}
+
+void DkBall::setAnalogueSpeed(float val) {
+
+	setSpeed(val * (mMaxSpeed - mMinSpeed) + mMinSpeed);
+}
+
 bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
+
+	// check minimum speed 
+	if (mSpeed < mMinSpeed)
+		mSpeed = mMinSpeed;
 
 	DkVector dir = mDirection;
 	dir.normalize();
@@ -737,18 +798,25 @@ float DkBall::changeDirPlayer(const DkPongPlayer* player, DkVector& dir) const {
 
 	// if the player moves in the ball direction speed it up
 	if (player->velocity()*dir.y > 0)
-		newSpeed += 0.2f;
-	else if (player->velocity()*dir.y < 0)
 		newSpeed -= 0.2f;
+	else if (player->velocity()*dir.y < 0)
+		newSpeed += 0.2f;
+
+	if (newSpeed != 1)
+		qDebug() << "speed changed: " << newSpeed;
 
 	double nAngle = dir.angle() + DK_PI*0.5;
 	double magic = (double)qrand() / RAND_MAX * 0.5 - 0.25;
 
-	dir.rotate((nAngle*2)+magic);
+	dir.rotate((nAngle * 2)+magic);
 
 	// change the angle if the ball becomes horizontal
-	if (DkMath::distAngle(dir.angle(), 0.0) > 0.01)
-		dir.rotate(0.7);
+	if (DkMath::distAngle(DkMath::normAngleRad(dir.angle(), 0.0, DK_PI), 0.0) > 0.01)
+		dir.rotate(0.6);
+	//	qDebug() << "0 angle: " << dir.angle();
+	//else
+	//	qDebug() << "angle: " << dir.angle();
+		//dir.rotate(0.7);
 
 	fixDirection(dir);
 

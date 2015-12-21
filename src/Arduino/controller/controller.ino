@@ -35,13 +35,17 @@ struct Controller {
 Controller c0;	// player 1
 Controller c1;	// player 2
 Controller c2;	// speed controll
+Controller c3;  // generic
+Controller c4;  // generic
 
 // the setup function runs once when you press reset or power the board
 void setup() {
   
   c0.pin = 0;
-  c1.pin = 3;
-  c2.pin = 5;
+  c1.pin = 1;
+  c2.pin = 2;
+  c3.pin = 3;
+  c4.pin = 4;
   
   // initialize digital pin 13 as an output.
   pinMode(LED, OUTPUT);
@@ -56,6 +60,8 @@ void loop() {
   update(&c0);  // update controller 0
   update(&c1);  // update controller 1
   update(&c2);  // update controller 2
+  update(&c3);  // update controller 3
+  update(&c4);  // update controller 4
 
   delay(15);    // wait a bit
   
@@ -71,7 +77,7 @@ void update(struct Controller* c) {
   
   int ar = analogRead(c->pin);
   
-  if (abs(ar - c->val) < 5)  // ignore noise
+  if (abs(ar - c->val) < 4)  // ignore noise
     return;
   
   c->val = ar;

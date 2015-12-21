@@ -125,7 +125,7 @@ void DkArduinoController::run() {
 			unsigned short buffer = 0;
 			ReadFile(hCOM, &buffer, sizeof(buffer), &read, NULL);
 
-			qDebug() << "buffer" << buffer;
+			//qDebug() << "buffer" << buffer;
 
 			serialValue(buffer);
 		}
