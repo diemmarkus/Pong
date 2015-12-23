@@ -495,8 +495,10 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 		mBall.setAnalogueSpeed(v);
 		if (v < 0.1f)
 			pauseGame();
-		else if (v - mLastSpeedValue > 0.1f)
+		else if (v - mLastSpeedValue > 0.1f && mPause) {
 			startCountDown();
+			mLastSpeedValue = v;	// update last value
+		}
 	}
 }
 
