@@ -491,12 +491,13 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 		mPlayer1->setPos(v);
 	else if (controller == mS->player2Pin())
 		mPlayer2->setPos(v);
-	else if (controller == mS->speedPin())
+	else if (controller == mS->speedPin()) {
 		mBall.setAnalogueSpeed(v);
-	else if (controller == mS->pausePin() && v > 0.5)
-		pauseGame(false);
-	else if (controller == mS->pausePin() && v < 0.1)
-		pauseGame();
+		if (v < 0.1f)
+			pauseGame();
+		else if (v - mLastSpeedValue > 0.1f)
+			startCountDown();
+	}
 }
 
 void DkPongPort::changeSpeed(int val) {
@@ -657,7 +658,7 @@ void DkPongPort::keyPressEvent(QKeyEvent *event) {
 		mPlayer1->setSpeed(mPlayerSpeed);
 	}
 	if (event->key() == Qt::Key_Space) {
-		togglePause();
+		startCountDown();
 	}
 	if (event->key() == Qt::Key_Plus) {
 		changeSpeed(1);
@@ -688,7 +689,7 @@ DkBall::DkBall(QSharedPointer<DkPongSettings> settings) {
 	mS = settings;
 	
 	mMinSpeed = qRound(mS->field().width()*0.005);
-	mMaxSpeed = qRound(mS->field().width()*0.1);
+	mMaxSpeed = qRound(mS->field().width()*0.02);
 	qDebug() << "maxSpeed: " << mMaxSpeed;
 
 	mRect = QRect(QPoint(), QSize(mS->unit(), mS->unit()));
@@ -710,7 +711,7 @@ void DkBall::reset() {
 
 void DkBall::updateSize() {
 	mMinSpeed = qRound(mS->field().width()*0.005);
-	mMaxSpeed = qRound(mS->field().width()*0.01);
+	mMaxSpeed = qRound(mS->field().width()*0.02);
 	setDirection(DkVector((float)qrand()/RAND_MAX*10.0f-5.0f, (float)qrand()/RAND_MAX*5.0f-2.5f));
 	//setDirection(DkVector(10,10));
 }

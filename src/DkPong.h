@@ -99,7 +99,7 @@ protected:
 	int mPlayer1Pin = 2;
 	int mPlayer2Pin = 4;
 	int mSpeedPin = 1;
-	int mPausePin = 0;
+	int mPausePin = 0;	// not used anymore
 
 	float mSpeed = 5.0f;
 
@@ -248,6 +248,7 @@ private:
 
 	int mPlayerSpeed;
 	bool mPause = true;
+	float mLastSpeedValue = -1.0f;
 
 	DkBall mBall;
 	DkPongPlayer* mPlayer1 = 0;
