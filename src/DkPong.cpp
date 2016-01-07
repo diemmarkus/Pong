@@ -114,7 +114,7 @@ void DkPongSettings::writeSettings() {
 	settings.setValue("speedPin", mSpeedPin);
 	settings.setValue("pausePin", mPausePin);
 
-	settings.setValue("speed", mSpeed);
+	//settings.setValue("speed", mSpeed);
 
 	settings.endGroup();
 
@@ -184,7 +184,7 @@ void DkPongSettings::loadSettings() {
 	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
 	mPausePin = settings.value("pausePin", mPausePin).toInt();
 	
-	mSpeed = settings.value("speed", mSpeed).toFloat();
+	//mSpeed = settings.value("speed", mSpeed).toFloat();
 
 	int bgAlpha = settings.value("backgroundAlpha", mBgCol.alpha()).toInt();
 	int fgAlpha = settings.value("foregroundAlpha", mFgCol.alpha()).toInt();
@@ -493,9 +493,12 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 		mPlayer2->setPos(v);
 	else if (controller == mS->speedPin()) {
 		mBall.setAnalogueSpeed(v);
-		if (v < 0.1f)
+		if (v < 0.1f) {
 			pauseGame();
-		else if (v - mLastSpeedValue > 0.1f && mPause) {
+			qDebug() << "v:" << v << "v raw: " << val;
+		}
+		else if (v > 0.1f && !mEventLoop->isActive()) {
+			qDebug() << "paused: " << !mEventLoop->isActive() << "v:" << v;
 			startCountDown();
 			mLastSpeedValue = v;	// update last value
 		}
@@ -575,6 +578,9 @@ void DkPongPort::drawField(QPainter& p) {
 }
 
 void DkPongPort::startCountDown(int sec) {
+
+	if (mCountDownTimer->isActive())
+		return;
 
 	mCountDownSecs = sec;
 	pauseGame();
@@ -691,7 +697,7 @@ DkBall::DkBall(QSharedPointer<DkPongSettings> settings) {
 	mS = settings;
 	
 	mMinSpeed = qRound(mS->field().width()*0.005);
-	mMaxSpeed = qRound(mS->field().width()*0.02);
+	mMaxSpeed = qRound(mS->field().width()*0.01);
 	qDebug() << "maxSpeed: " << mMaxSpeed;
 
 	mRect = QRect(QPoint(), QSize(mS->unit(), mS->unit()));

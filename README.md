@@ -21,7 +21,7 @@ Pong is a homage to the famous arcade game Pong with the capability of old-schoo
 
 ## Prepare Arduino Uno
 1. get the Arduino IDE [1]
-2. plugin your Aruino Uno Board (via USB)
+2. plugin your Arduino Uno Board (via USB)
 3. Mount the Board (`Tools > Port > COMxx`)
 4. Load the controller code (`Pong > src > Arduino > controller > controller.ino`)
 5. Compile `CTRL+U`

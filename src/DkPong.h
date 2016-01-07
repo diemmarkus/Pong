@@ -247,7 +247,6 @@ private:
 	int mCountDownSecs = 3;
 
 	int mPlayerSpeed;
-	bool mPause = true;
 	float mLastSpeedValue = -1.0f;
 
 	DkBall mBall;
