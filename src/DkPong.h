@@ -101,7 +101,7 @@ protected:
 	int mSpeedPin = 1;
 	int mPausePin = 0;	// not used anymore
 
-	float mSpeed = 5.0f;
+	float mSpeed = 30.0f;
 
 	QColor mBgCol = QColor(0,0,0,100);
 	QColor mFgCol = QColor(255,255,255);

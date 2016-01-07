@@ -761,7 +761,7 @@ bool DkBall::move(DkPongPlayer* player1, DkPongPlayer* player2) {
 
 	DkVector dir = mDirection;
 	dir.normalize();
-	dir *= (float)(mSpeed + qRound(mRally/10.0));
+	dir *= mSpeed;//	 (float)(mSpeed + qRound(mRally / 10.0));
 	fixDirection(dir);
 
 	// collision detection top & bottom
@@ -849,7 +849,7 @@ bool DkBall::collision(const QRect& player, const DkVector& nextCenter) const {
 	if (player.intersects(mRect))
 		return true;
 
-	// first check if be cross the player line
+	// first check if we cross the player line
 	float pc = (float)player.center().x();
 	float cx = (float)mRect.center().x();
 
