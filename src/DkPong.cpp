@@ -39,6 +39,10 @@
 #include <QDesktopWidget>
 #include <QSettings>
 #include <QSound>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QHBoxLayout>
+#include <algorithm>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace pong {
@@ -165,6 +169,10 @@ float DkPongSettings::playerRatio() const {
 	return mPlayerRatio;
 }
 
+QString DkPongSettings::DBPath() const {
+	return mDBPath;
+}
+
 void DkPongSettings::loadSettings() {
 
 	QSettings& settings = Settings::instance().getSettings();
@@ -184,6 +192,7 @@ void DkPongSettings::loadSettings() {
 	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
 	mPausePin = settings.value("pausePin", mPausePin).toInt();
 	
+	mDBPath = settings.value("dbPath", mDBPath).toString();
 	//mSpeed = settings.value("speed", mSpeed).toFloat();
 
 	int bgAlpha = settings.value("backgroundAlpha", mBgCol.alpha()).toInt();
@@ -377,6 +386,15 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	mLargeInfo = new DkScoreLabel(Qt::AlignHCenter | Qt::AlignBottom, this, mS);
 	mSmallInfo = new DkScoreLabel(Qt::AlignHCenter, this, mS);
 	 
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->addStretch();
+
+	//layout->setAlignment(Qt::AlignBottom);
+	
+	
+	mHighscores = new DkHighscores(this, mS);
+	layout->addWidget(mHighscores);
+
 	mEventLoop = new QTimer(this);
 	mEventLoop->setInterval(10);
 	//eventLoop->start();
@@ -946,4 +964,90 @@ void DkPong::closeEvent(QCloseEvent * event) {
 	QMainWindow::closeEvent(event);
 }
 
+// DkHighscores
+
+DkPlayers::DkPlayers(DkHighscores* highscores, Qt::Alignment align)
+	:	QWidget(highscores), 
+		mHighscores(highscores), 
+		mSelected(0), 
+		mAlign(align), 
+		mLayout(new QHBoxLayout(this))
+{
+	setLayout(mLayout);
+	//layout->setAlignment()
 }
+
+void DkPlayers::update()
+{
+	auto addPlayer = [this](QSharedPointer<Player> player) {
+		QLabel* label = new QLabel(this);
+		label->setPixmap(player->picture);
+		mLayout->addWidget(label);
+	};
+
+	if (mAlign == Qt::AlignRight)
+		mLayout->addStretch();
+
+	std::for_each(mHighscores->players().begin(), mHighscores->players().end(), addPlayer);
+
+	if (mAlign == Qt::AlignLeft)
+		mLayout->addStretch();
+}
+
+DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> settings) 
+	:	QWidget(parent),
+		mLeft(new DkPlayers(this, Qt::AlignLeft)),
+		mRight(new DkPlayers(this, Qt::AlignRight))
+{
+	QGridLayout* grid = new QGridLayout(this);
+
+	grid->addWidget(mLeft, 0, 0);
+	grid->addWidget(mRight, 0, 1);
+
+	setLayout(grid);
+
+	loadDB(settings->DBPath());
+
+	mLeft->update();
+	mRight->update();
+};
+
+const std::vector<QSharedPointer<Player>>& DkHighscores::players() const
+{
+	return mPlayer;
+}
+
+void DkHighscores::loadDB(const QString& path)
+{
+	QString dbName(path);
+	mDB = QSqlDatabase::addDatabase("QSQLITE");
+	mDB.setDatabaseName(dbName);
+	mDB.open();
+
+	if (!mDB.isOpen())
+		qDebug() << "Error opening sqlite database:\n" << mDB.lastError();
+
+	QSqlQuery query = QSqlQuery(mDB);
+	// Get image data back from database
+	if (!query.exec("SELECT name, picture from players"))
+		qDebug() << "Error getting image from table:\n" << query.lastError();
+
+
+	while (query.next()) {
+		QString name = query.value(0).toString();
+		QByteArray outByteArray = query.value(1).toByteArray();
+		
+		QPixmap picture;
+		picture.loadFromData(outByteArray);
+		picture = picture.scaledToWidth(100);
+
+		QSharedPointer<Player> player(new Player());
+		player->name = name;
+		player->picture = picture;
+
+		mPlayer.push_back(player);
+	}
+}
+
+}
+

@@ -32,6 +32,10 @@
 #include <QRect>
 #include <QLabel>
 #include <QSharedPointer>
+#include <map>
+#include <QSqlDatabase>
+#include <QHBoxLayout>
+
 #pragma warning(pop)		// no warnings from includes - end
 
 #include "DkMath.h"
@@ -91,6 +95,8 @@ public:
 	void setSpeed(float speed);
 	float speed() const;
 
+	QString DBPath() const;
+
 protected:
 	QRect mField;
 	int mUnit = 10;
@@ -110,6 +116,8 @@ protected:
 	QString mPlayer2Name = QObject::tr("Player 2");
 
 	float mPlayerRatio = 0.15f;
+
+	QString mDBPath;
 
 	void loadSettings();
 };
@@ -210,6 +218,45 @@ protected:
 	QSharedPointer<DkPongSettings> mS;
 };
 
+struct Player {
+	QPixmap picture;
+	QString name;
+};
+
+class DkHighscores;
+
+class DllExport DkPlayers : public QWidget {
+	Q_OBJECT
+
+public: 
+	DkPlayers(DkHighscores* mHighscores, Qt::Alignment align);
+	int selected() const;
+	void update();
+
+private:
+	DkHighscores *mHighscores;
+	int mSelected;
+	Qt::Alignment mAlign;
+	QHBoxLayout * mLayout;
+};
+
+class DllExport DkHighscores : public QWidget {
+	Q_OBJECT
+
+public:
+	DkHighscores(QWidget *parent = 0, QSharedPointer<DkPongSettings> settings = QSharedPointer<DkPongSettings>(new DkPongSettings()));
+	//virtual ~DkHighscores();
+
+	void loadDB(const QString& path);
+	const std::vector<QSharedPointer<Player>>& players() const;
+
+private:
+	std::vector<QSharedPointer<Player>> mPlayer;
+	QSqlDatabase mDB;
+	DkPlayers* mLeft;
+	DkPlayers* mRight;
+};
+
 class DllExport DkPongPort : public QGraphicsView {
 	Q_OBJECT
 
@@ -262,6 +309,8 @@ private:
 	DkScoreLabel* mLargeInfo;
 	DkScoreLabel* mSmallInfo;
 
+	DkHighscores* mHighscores;
+
 	DkArduinoController* mController = 0;
 
 	void startCountDown(int sec = 3);
@@ -282,6 +331,5 @@ protected:
 	
 	DkPongPort* mViewport;
 };
-
 
 };
