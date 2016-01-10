@@ -1118,12 +1118,12 @@ void DkHighscores::commitScore(int player1, int player2)
 	}
 
 	QSqlQuery query(mDB);
-	query.prepare(QString() + "INSERT INTO scores (winner_name)" //, looser_name, winner_score, looser_score 
-					+" VALUES (manuel)"); //,:looser,:wScore,:lScore
-	//query.bindValue(":winner", winner);
-	/*query.bindValue(":looser", looser);
-	query.bindValue(":wScore", std::max(player1, player2));
-	query.bindValue(":lScore", std::min(player1, player2));*/
+	query.prepare("Insert into scores(winner_name, looser_name, winner_points, looser_points) "
+				  " VALUES (:winner, :looser, :winner_score, :looser_score)"); 
+	query.bindValue(":winner", winner);
+	query.bindValue(":looser", looser);
+	query.bindValue(":winner_score", std::max(player1, player2));
+	query.bindValue(":looser_score", std::min(player1, player2));
 
 	if (!query.exec()) {
 		qDebug() << "Error inserting score in table:\n" << query.lastError();
