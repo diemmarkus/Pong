@@ -218,8 +218,13 @@ protected:
 	QSharedPointer<DkPongSettings> mS;
 };
 
+enum class Screen {
+	Player1,
+	Player2
+};
 struct Player {
 	QPixmap picture;
+	QPixmap pictureSelected;
 	QString name;
 };
 
@@ -231,13 +236,15 @@ class DllExport DkPlayers : public QWidget {
 public: 
 	DkPlayers(DkHighscores* mHighscores, Qt::Alignment align);
 	int selected() const;
-	void update();
+	void setSelected(int idx);
+	void create();
 
 private:
 	DkHighscores *mHighscores;
 	int mSelected;
 	Qt::Alignment mAlign;
 	QHBoxLayout * mLayout;
+	std::vector<QLabel*> mLabels;
 };
 
 class DllExport DkHighscores : public QWidget {
@@ -249,6 +256,20 @@ public:
 
 	void loadDB(const QString& path);
 	const std::vector<QSharedPointer<Player>>& players() const;
+	
+	/*!
+		@brief Changes the current player in the specified screen
+		@param screen - e.g. Player1, Player2
+		@param player - floating point value in [0,1] to specify player
+	*/
+	void changePlayer(Screen screen, double player);
+	
+	/*!
+		@brief Insert score into DB
+		@param player1 - score for player1
+		@param player2 - score for player2
+	*/
+	void commitScore(int player1, int player2);
 
 private:
 	std::vector<QSharedPointer<Player>> mPlayer;

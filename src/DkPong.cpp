@@ -43,6 +43,7 @@
 #include <QSqlError>
 #include <QHBoxLayout>
 #include <algorithm>
+#include <cmath>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace pong {
@@ -653,6 +654,7 @@ void DkPongPort::gameLoop() {
 			pauseGame();
 			mLargeInfo->setText(tr("%1 won!").arg(mPlayer1->score() > mPlayer2->score() ? mPlayer1->name() : mPlayer2->name()));
 			mSmallInfo->setText(tr("Hit <SPACE> to start a new Game"));
+			mHighscores->commitScore(mPlayer1->score(), mPlayer2->score());
 		}
 		else
 			startCountDown();
@@ -691,6 +693,18 @@ void DkPongPort::keyPressEvent(QKeyEvent *event) {
 	}
 	if (event->key() == Qt::Key_Minus) {
 		changeSpeed(-1);
+	}
+	if (event->key() == Qt::Key_Left) {
+		mHighscores->changePlayer(Screen::Player2, 0.2);
+	}
+	if (event->key() == Qt::Key_Right) {
+		mHighscores->changePlayer(Screen::Player2, 0.4);
+	}
+	if (event->key() == Qt::Key_A) {
+		mHighscores->changePlayer(Screen::Player1, 0.6);
+	}
+	if (event->key() == Qt::Key_D) {
+		mHighscores->changePlayer(Screen::Player1, 0.8);
 	}
 
 	QWidget::keyPressEvent(event);
@@ -974,15 +988,15 @@ DkPlayers::DkPlayers(DkHighscores* highscores, Qt::Alignment align)
 		mLayout(new QHBoxLayout(this))
 {
 	setLayout(mLayout);
-	//layout->setAlignment()
+	mLayout->setMargin(0);
 }
 
-void DkPlayers::update()
+void DkPlayers::create()
 {
 	auto addPlayer = [this](QSharedPointer<Player> player) {
 		QLabel* label = new QLabel(this);
-		label->setPixmap(player->picture);
 		mLayout->addWidget(label);
+		mLabels.push_back(label);
 	};
 
 	if (mAlign == Qt::AlignRight)
@@ -992,6 +1006,28 @@ void DkPlayers::update()
 
 	if (mAlign == Qt::AlignLeft)
 		mLayout->addStretch();
+
+	setSelected(mSelected);
+}
+
+void DkPlayers::setSelected(int idx)
+{
+	for (size_t i = 0; i < mLabels.size(); ++i) {
+		if (idx == i) {
+			mLabels[i]->setPixmap(mHighscores->players()[i]->pictureSelected);
+		}
+		else {
+			mLabels[i]->setPixmap(mHighscores->players()[i]->picture);
+		}
+	}
+
+	mSelected = idx;
+	update();
+}
+
+int DkPlayers::selected() const
+{
+	return mSelected;
 }
 
 DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> settings) 
@@ -1008,13 +1044,25 @@ DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> setti
 
 	loadDB(settings->DBPath());
 
-	mLeft->update();
-	mRight->update();
+	mLeft->create();
+	mRight->create();
 };
 
 const std::vector<QSharedPointer<Player>>& DkHighscores::players() const
 {
 	return mPlayer;
+}
+
+void DkHighscores::changePlayer(Screen screen, double player)
+{
+	double cnt = players().size();
+
+	size_t idx = static_cast<size_t>(floor(player*cnt));
+
+	switch (screen) {
+	case Screen::Player1: mLeft->setSelected(idx); break;
+	case Screen::Player2: mRight->setSelected(idx); break;
+	}
 }
 
 void DkHighscores::loadDB(const QString& path)
@@ -1039,15 +1087,47 @@ void DkHighscores::loadDB(const QString& path)
 		
 		QPixmap picture;
 		picture.loadFromData(outByteArray);
-		picture = picture.scaledToWidth(100);
+		picture = picture.scaledToWidth(128);
+
+		QPixmap selected;
+		selected.loadFromData(outByteArray);
+		selected = selected.scaledToWidth(256);
 
 		QSharedPointer<Player> player(new Player());
 		player->name = name;
 		player->picture = picture;
-
+		player->pictureSelected = selected;
 		mPlayer.push_back(player);
 	}
 }
 
+void DkHighscores::commitScore(int player1, int player2)
+{
+	QString winner; 
+	QString looser;
+
+	winner = mPlayer[mLeft->selected()]->name;
+	looser = mPlayer[mRight->selected()]->name;
+
+	if (player2 > player1) {
+		swap(winner, looser);
+	}
+
+	if (!mDB.isOpen()) {
+		qDebug() << "Database must be opened first";
+	}
+
+	QSqlQuery query(mDB);
+	query.prepare(QString() + "INSERT INTO scores (winner_name)" //, looser_name, winner_score, looser_score 
+					+" VALUES (manuel)"); //,:looser,:wScore,:lScore
+	//query.bindValue(":winner", winner);
+	/*query.bindValue(":looser", looser);
+	query.bindValue(":wScore", std::max(player1, player2));
+	query.bindValue(":lScore", std::min(player1, player2));*/
+
+	if (!query.exec()) {
+		qDebug() << "Error inserting score in table:\n" << query.lastError();
+	}
+}
 }
 
