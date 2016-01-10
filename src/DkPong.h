@@ -271,8 +271,18 @@ public:
 	*/
 	void commitScore(int player1, int player2);
 
+	/*!
+		@brief Returns the name of the selected player for the given screen
+	*/
+	QString playerName(Screen screen) const;
+
+signals:
+	/*!
+		@brief Signal emitted when a new player is selected
+	*/
+	void playerChanged(Screen screen, const QString& name);
 private:
-	std::vector<QSharedPointer<Player>> mPlayer;
+	std::vector<QSharedPointer<Player>> mPlayers;
 	QSqlDatabase mDB;
 	DkPlayers* mLeft;
 	DkPlayers* mRight;
@@ -298,6 +308,7 @@ public slots:
 	void countDown();
 	void controllerUpdate(int controller, int val);
 	void changeSpeed(int val);
+	void playerChanged(Screen screen, const QString& player);
 
 protected:
 	virtual void paintEvent(QPaintEvent* event);

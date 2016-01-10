@@ -395,6 +395,8 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	
 	mHighscores = new DkHighscores(this, mS);
 	layout->addWidget(mHighscores);
+	connect(mHighscores, &DkHighscores::playerChanged, this, &DkPongPort::playerChanged);
+
 
 	mEventLoop = new QTimer(this);
 	mEventLoop->setInterval(10);
@@ -479,6 +481,16 @@ void DkPongPort::pauseGame(bool pause) {
 	mSmallInfo->setVisible(pause);
 }
 
+void DkPongPort::playerChanged(Screen screen, const QString& name)
+{
+	if (screen == Screen::Player1) {
+		mPlayer1->setName(name);
+	}
+	else if (screen == Screen::Player2) {
+		mPlayer2->setName(name);
+	}
+	
+}
 DkPongPort::~DkPongPort() {
 }
 
@@ -1050,7 +1062,7 @@ DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> setti
 
 const std::vector<QSharedPointer<Player>>& DkHighscores::players() const
 {
-	return mPlayer;
+	return mPlayers;
 }
 
 void DkHighscores::changePlayer(Screen screen, double player)
@@ -1063,6 +1075,18 @@ void DkHighscores::changePlayer(Screen screen, double player)
 	case Screen::Player1: mLeft->setSelected(idx); break;
 	case Screen::Player2: mRight->setSelected(idx); break;
 	}
+
+	emit playerChanged(screen, playerName(screen));
+}
+
+QString DkHighscores::playerName(Screen screen) const
+{
+	switch (screen) {
+	case Screen::Player1: return mPlayers[mLeft->selected()]->name; break;
+	case Screen::Player2: return mPlayers[mRight->selected()]->name; break;
+	}
+
+	return "";
 }
 
 void DkHighscores::loadDB(const QString& path)
@@ -1097,7 +1121,7 @@ void DkHighscores::loadDB(const QString& path)
 		player->name = name;
 		player->picture = picture;
 		player->pictureSelected = selected;
-		mPlayer.push_back(player);
+		mPlayers.push_back(player);
 	}
 }
 
@@ -1106,8 +1130,8 @@ void DkHighscores::commitScore(int player1, int player2)
 	QString winner; 
 	QString looser;
 
-	winner = mPlayer[mLeft->selected()]->name;
-	looser = mPlayer[mRight->selected()]->name;
+	winner = mPlayers[mLeft->selected()]->name;
+	looser = mPlayers[mRight->selected()]->name;
 
 	if (player2 > player1) {
 		swap(winner, looser);
