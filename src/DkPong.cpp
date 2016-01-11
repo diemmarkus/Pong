@@ -42,6 +42,8 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QHBoxLayout>
+#include <QFileInfo>
+#include <QDir>
 #include <algorithm>
 #include <cmath>
 #pragma warning(pop)		// no warnings from includes - end
@@ -120,7 +122,9 @@ void DkPongSettings::writeSettings() {
 	settings.setValue("pausePin", mPausePin);
 
 	settings.setValue("player1SelectPin", mPlayer1SelectPin);
-	settings.setValue("player2SelectPin", mPlayer1SelectPin);
+	settings.setValue("player2SelectPin", mPlayer2SelectPin);
+
+	settings.setValue("dbName", mDBName);
 	//settings.setValue("speed", mSpeed);
 
 	settings.endGroup();
@@ -181,7 +185,7 @@ float DkPongSettings::playerRatio() const {
 }
 
 QString DkPongSettings::DBPath() const {
-	return mDBPath;
+	return mDBName;
 }
 
 void DkPongSettings::loadSettings() {
@@ -205,7 +209,7 @@ void DkPongSettings::loadSettings() {
 	mPlayer1SelectPin = settings.value("player1SelectPin", mPlayer1SelectPin).toInt();
 	mPlayer2SelectPin = settings.value("player2SelectPin", mPlayer2SelectPin).toInt();
 
-	mDBPath = settings.value("dbPath", mDBPath).toString();
+	mDBName = settings.value("dbName", mDBName).toString();
 	//mSpeed = settings.value("speed", mSpeed).toFloat();
 
 	int bgAlpha = settings.value("backgroundAlpha", mBgCol.alpha()).toInt();
@@ -400,10 +404,10 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	mSmallInfo = new DkScoreLabel(Qt::AlignHCenter, this, mS);
 	 
 	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
 	layout->addStretch();
 
 	//layout->setAlignment(Qt::AlignBottom);
-	
 	
 	mHighscores = new DkHighscores(this, mS);
 	layout->addWidget(mHighscores);
@@ -1015,30 +1019,49 @@ DkPlayers::DkPlayers(DkHighscores* highscores, Qt::Alignment align)
 	:	QWidget(highscores), 
 		mHighscores(highscores), 
 		mSelected(0), 
-		mAlign(align), 
-		mLayout(new QHBoxLayout(this))
+		mAlign(align)
 {
-	setLayout(mLayout);
-	mLayout->setMargin(0);
+	//setLayout(mLayout);
 }
 
 void DkPlayers::create()
 {
+
+	QWidget* dummy = new QWidget(this);
+	mLayout = new QHBoxLayout(dummy);
+	mLayout->setAlignment(mAlign);
+	mLayout->setMargin(0);
+	
 	auto addPlayer = [this](QSharedPointer<Player> player) {
 		QLabel* label = new QLabel(this);
 		mLayout->addWidget(label);
 		mLabels.push_back(label);
 	};
 
-	if (mAlign == Qt::AlignRight)
-		mLayout->addStretch();
-
 	std::for_each(mHighscores->players().begin(), mHighscores->players().end(), addPlayer);
-
-	if (mAlign == Qt::AlignLeft)
-		mLayout->addStretch();
-
 	setSelected(mSelected);
+
+	mScrollArea = new QScrollArea(this);
+	mScrollArea->setAlignment(mAlign);
+	mScrollArea->setObjectName("playerSelection");
+	mScrollArea->setFixedHeight(selectedSize() + 20);
+	mScrollArea->setWidget(dummy);
+	mScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	mScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+	QHBoxLayout* l = new QHBoxLayout(this);
+	l->setAlignment(mAlign);
+	l->setContentsMargins(0, 0, 0, 0);
+	l->addWidget(mScrollArea);
+
+}
+
+int DkPlayers::selectedSize() {
+	return 142;
+}
+
+int DkPlayers::size() {
+	return 100;
 }
 
 void DkPlayers::setSelected(int idx)
@@ -1046,6 +1069,9 @@ void DkPlayers::setSelected(int idx)
 	for (size_t i = 0; i < mLabels.size(); ++i) {
 		if (idx == i) {
 			mLabels[i]->setPixmap(mHighscores->players()[i]->pictureSelected);
+			
+			if (mScrollArea)
+				mScrollArea->ensureWidgetVisible(mLabels[i]);
 		}
 		else {
 			mLabels[i]->setPixmap(mHighscores->players()[i]->picture);
@@ -1067,7 +1093,7 @@ DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> setti
 		mRight(new DkPlayers(this, Qt::AlignRight))
 {
 	QGridLayout* grid = new QGridLayout(this);
-
+	grid->setContentsMargins(0, 0, 0, 0);
 	grid->addWidget(mLeft, 0, 0);
 	grid->addWidget(mRight, 0, 1);
 
@@ -1086,10 +1112,17 @@ const std::vector<QSharedPointer<Player>>& DkHighscores::players() const
 
 void DkHighscores::changePlayer(Screen screen, double player)
 {
-	double cnt = players().size();
+	double cnt = (double)players().size();
+	int idx = (int)floor(player*cnt);
 
-	size_t idx = static_cast<size_t>(floor(player*cnt));
+	qDebug() << "new player index: " << idx << "normed:" << player;
 
+	if (idx < 0 || idx >= players().size()) {
+		qDebug() << "player selection out of bounds";
+		return;
+	}
+
+	
 	switch (screen) {
 	case Screen::Player1: mLeft->setSelected(idx); break;
 	case Screen::Player2: mRight->setSelected(idx); break;
@@ -1108,16 +1141,27 @@ QString DkHighscores::playerName(Screen screen) const
 	return "";
 }
 
-void DkHighscores::loadDB(const QString& path)
+void DkHighscores::loadDB(const QString& name)
 {
-	QString dbName(path);
+	
+	QFileInfo dbInfo(QApplication::applicationDirPath(), name);
+
+	if (!dbInfo.exists()) {
+		qDebug() << "Could not load database...";
+		return;
+	}
+	
 	mDB = QSqlDatabase::addDatabase("QSQLITE");
-	mDB.setDatabaseName(dbName);
+	mDB.setDatabaseName(dbInfo.absoluteFilePath());
 	mDB.open();
-
-	if (!mDB.isOpen())
+	
+	if (!mDB.isOpen()) {
 		qDebug() << "Error opening sqlite database:\n" << mDB.lastError();
+		return;
+	}
 
+	qDebug() << dbInfo.absoluteFilePath() << "is opened...";
+	
 	QSqlQuery query = QSqlQuery(mDB);
 	// Get image data back from database
 	if (!query.exec("SELECT name, picture from players"))
@@ -1125,19 +1169,19 @@ void DkHighscores::loadDB(const QString& path)
 
 
 	while (query.next()) {
-		QString name = query.value(0).toString();
+		QString playerName = query.value(0).toString();
 		QByteArray outByteArray = query.value(1).toByteArray();
 		
 		QPixmap picture;
 		picture.loadFromData(outByteArray);
-		picture = picture.scaledToWidth(128);
+		picture = picture.scaledToWidth(DkPlayers::size());
 
 		QPixmap selected;
 		selected.loadFromData(outByteArray);
-		selected = selected.scaledToWidth(256);
+		selected = selected.scaledToWidth(DkPlayers::selectedSize());
 
 		QSharedPointer<Player> player(new Player());
-		player->name = name;
+		player->name = playerName;
 		player->picture = picture;
 		player->pictureSelected = selected;
 		mPlayers.push_back(player);
@@ -1146,6 +1190,12 @@ void DkHighscores::loadDB(const QString& path)
 
 void DkHighscores::commitScore(int player1, int player2)
 {
+
+	if (!mDB.isOpen()) {
+		qDebug() << "database could not be found...";
+		return;
+	}
+
 	QString winner; 
 	QString looser;
 
@@ -1155,11 +1205,6 @@ void DkHighscores::commitScore(int player1, int player2)
 	if (player2 > player1) {
 		swap(winner, looser);
 	}
-
-	if (!mDB.isOpen()) {
-		qDebug() << "Database must be opened first";
-	}
-
 	QSqlQuery query(mDB);
 	query.prepare("Insert into scores(winner_name, looser_name, winner_points, looser_points) "
 				  " VALUES (:winner, :looser, :winner_score, :looser_score)"); 

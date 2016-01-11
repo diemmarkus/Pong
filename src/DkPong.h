@@ -120,7 +120,7 @@ protected:
 
 	float mPlayerRatio = 0.15f;
 
-	QString mDBPath;
+	QString mDBName;
 
 	void loadSettings();
 };
@@ -241,6 +241,8 @@ public:
 	int selected() const;
 	void setSelected(int idx);
 	void create();
+	static int selectedSize();
+	static int size();
 
 private:
 	DkHighscores *mHighscores;
@@ -248,6 +250,7 @@ private:
 	Qt::Alignment mAlign;
 	QHBoxLayout * mLayout;
 	std::vector<QLabel*> mLabels;
+	QScrollArea* mScrollArea = 0;
 };
 
 class DllExport DkHighscores : public QWidget {
