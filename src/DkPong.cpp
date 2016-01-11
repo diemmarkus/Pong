@@ -39,6 +39,11 @@
 #include <QDesktopWidget>
 #include <QSettings>
 #include <QSound>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QHBoxLayout>
+#include <algorithm>
+#include <cmath>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace pong {
@@ -114,6 +119,8 @@ void DkPongSettings::writeSettings() {
 	settings.setValue("speedPin", mSpeedPin);
 	settings.setValue("pausePin", mPausePin);
 
+	settings.setValue("player1SelectPin", mPlayer1SelectPin);
+	settings.setValue("player2SelectPin", mPlayer1SelectPin);
 	//settings.setValue("speed", mSpeed);
 
 	settings.endGroup();
@@ -153,6 +160,14 @@ int DkPongSettings::pausePin() const {
 	return mPausePin;
 }
 
+int DkPongSettings::player1SelectPin() const {
+	return mPlayer1SelectPin;
+}
+
+int DkPongSettings::player2SelectPin() const {
+	return mPlayer2SelectPin;
+}
+
 void DkPongSettings::setSpeed(float speed) {
 	mSpeed = speed;
 }
@@ -163,6 +178,10 @@ float DkPongSettings::speed() const {
 
 float DkPongSettings::playerRatio() const {
 	return mPlayerRatio;
+}
+
+QString DkPongSettings::DBPath() const {
+	return mDBPath;
 }
 
 void DkPongSettings::loadSettings() {
@@ -183,7 +202,10 @@ void DkPongSettings::loadSettings() {
 	mPlayer2Pin = settings.value("player2Pin", mPlayer2Pin).toInt();
 	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
 	mPausePin = settings.value("pausePin", mPausePin).toInt();
-	
+	mPlayer1SelectPin = settings.value("player1SelectPin", mPlayer1SelectPin).toInt();
+	mPlayer2SelectPin = settings.value("player2SelectPin", mPlayer2SelectPin).toInt();
+
+	mDBPath = settings.value("dbPath", mDBPath).toString();
 	//mSpeed = settings.value("speed", mSpeed).toFloat();
 
 	int bgAlpha = settings.value("backgroundAlpha", mBgCol.alpha()).toInt();
@@ -377,6 +399,17 @@ DkPongPort::DkPongPort(QWidget *parent, Qt::WindowFlags) : QGraphicsView(parent)
 	mLargeInfo = new DkScoreLabel(Qt::AlignHCenter | Qt::AlignBottom, this, mS);
 	mSmallInfo = new DkScoreLabel(Qt::AlignHCenter, this, mS);
 	 
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->addStretch();
+
+	//layout->setAlignment(Qt::AlignBottom);
+	
+	
+	mHighscores = new DkHighscores(this, mS);
+	layout->addWidget(mHighscores);
+	connect(mHighscores, &DkHighscores::playerChanged, this, &DkPongPort::playerChanged);
+
+
 	mEventLoop = new QTimer(this);
 	mEventLoop->setInterval(10);
 	//eventLoop->start();
@@ -402,8 +435,8 @@ void DkPongPort::initGame() {
 	mPlayer2->reset(QPoint(qRound(width()-mS->unit()*1.5f), qRound(height()*0.5f)));
 
 	if (mPlayer1->score() == 0 && mPlayer2->score() == 0) {
-		mP1Score->setText(mPlayer1->name());
-		mP2Score->setText(mPlayer2->name());
+		mP1Score->setText("0");
+		mP2Score->setText("0");
 	}
 	else {
 		mP1Score->setText(QString::number(mPlayer1->score()));
@@ -415,8 +448,8 @@ void DkPongPort::initGame() {
 
 void DkPongPort::start() {
 
-	mP1Score->setText(mPlayer1->name());
-	mP2Score->setText(mPlayer2->name());
+	mP1Score->setText("0");
+	mP2Score->setText("0");
 	update();
 
 	if (mController)
@@ -437,7 +470,6 @@ void DkPongPort::pauseGame(bool pause) {
 		mSmallInfo->setText(tr("Press <SPACE> to start."));
 		connect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
 		connect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
-
 	}
 	else {
 
@@ -453,13 +485,23 @@ void DkPongPort::pauseGame(bool pause) {
 		mEventLoop->start();
 		disconnect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()));
 		disconnect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()));
-
 	}
 
+	mHighscores->setVisible(pause);
 	mLargeInfo->setVisible(pause);
 	mSmallInfo->setVisible(pause);
 }
 
+void DkPongPort::playerChanged(Screen screen, const QString& name)
+{
+	if (screen == Screen::Player1) {
+		mPlayer1->setName(name);
+	}
+	else if (screen == Screen::Player2) {
+		mPlayer2->setName(name);
+	}
+	
+}
 DkPongPort::~DkPongPort() {
 }
 
@@ -502,6 +544,12 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 			startCountDown();
 			mLastSpeedValue = v;	// update last value
 		}
+	} 
+	else if (controller == mS->player1SelectPin() && !mEventLoop->isActive()) {
+		mHighscores->changePlayer(Screen::Player1, v);
+	}
+	else if (controller == mS->player2SelectPin() && !mEventLoop->isActive()) {
+		mHighscores->changePlayer(Screen::Player2, v);
 	}
 }
 
@@ -582,12 +630,14 @@ void DkPongPort::startCountDown(int sec) {
 	if (mCountDownTimer->isActive())
 		return;
 
+	
 	mCountDownSecs = sec;
 	pauseGame();
 	mCountDownTimer->start();
 	mLargeInfo->setText(QString::number(mCountDownSecs));
 	mLargeInfo->show();
 	mSmallInfo->hide();
+	mHighscores->hide();
 }
 
 void DkPongPort::resizeEvent(QResizeEvent *event) {
@@ -635,6 +685,7 @@ void DkPongPort::gameLoop() {
 			pauseGame();
 			mLargeInfo->setText(tr("%1 won!").arg(mPlayer1->score() > mPlayer2->score() ? mPlayer1->name() : mPlayer2->name()));
 			mSmallInfo->setText(tr("Hit <SPACE> to start a new Game"));
+			mHighscores->commitScore(mPlayer1->score(), mPlayer2->score());
 		}
 		else
 			startCountDown();
@@ -673,6 +724,18 @@ void DkPongPort::keyPressEvent(QKeyEvent *event) {
 	}
 	if (event->key() == Qt::Key_Minus) {
 		changeSpeed(-1);
+	}
+	if (event->key() == Qt::Key_Left) {
+		mHighscores->changePlayer(Screen::Player2, 0.2);
+	}
+	if (event->key() == Qt::Key_Right) {
+		mHighscores->changePlayer(Screen::Player2, 0.4);
+	}
+	if (event->key() == Qt::Key_A) {
+		mHighscores->changePlayer(Screen::Player1, 0.6);
+	}
+	if (event->key() == Qt::Key_D) {
+		mHighscores->changePlayer(Screen::Player1, 0.8);
 	}
 
 	QWidget::keyPressEvent(event);
@@ -946,4 +1009,168 @@ void DkPong::closeEvent(QCloseEvent * event) {
 	QMainWindow::closeEvent(event);
 }
 
+// DkHighscores
+
+DkPlayers::DkPlayers(DkHighscores* highscores, Qt::Alignment align)
+	:	QWidget(highscores), 
+		mHighscores(highscores), 
+		mSelected(0), 
+		mAlign(align), 
+		mLayout(new QHBoxLayout(this))
+{
+	setLayout(mLayout);
+	mLayout->setMargin(0);
 }
+
+void DkPlayers::create()
+{
+	auto addPlayer = [this](QSharedPointer<Player> player) {
+		QLabel* label = new QLabel(this);
+		mLayout->addWidget(label);
+		mLabels.push_back(label);
+	};
+
+	if (mAlign == Qt::AlignRight)
+		mLayout->addStretch();
+
+	std::for_each(mHighscores->players().begin(), mHighscores->players().end(), addPlayer);
+
+	if (mAlign == Qt::AlignLeft)
+		mLayout->addStretch();
+
+	setSelected(mSelected);
+}
+
+void DkPlayers::setSelected(int idx)
+{
+	for (size_t i = 0; i < mLabels.size(); ++i) {
+		if (idx == i) {
+			mLabels[i]->setPixmap(mHighscores->players()[i]->pictureSelected);
+		}
+		else {
+			mLabels[i]->setPixmap(mHighscores->players()[i]->picture);
+		}
+	}
+
+	mSelected = idx;
+	update();
+}
+
+int DkPlayers::selected() const
+{
+	return mSelected;
+}
+
+DkHighscores::DkHighscores(QWidget *parent, QSharedPointer<DkPongSettings> settings) 
+	:	QWidget(parent),
+		mLeft(new DkPlayers(this, Qt::AlignLeft)),
+		mRight(new DkPlayers(this, Qt::AlignRight))
+{
+	QGridLayout* grid = new QGridLayout(this);
+
+	grid->addWidget(mLeft, 0, 0);
+	grid->addWidget(mRight, 0, 1);
+
+	setLayout(grid);
+
+	loadDB(settings->DBPath());
+
+	mLeft->create();
+	mRight->create();
+};
+
+const std::vector<QSharedPointer<Player>>& DkHighscores::players() const
+{
+	return mPlayers;
+}
+
+void DkHighscores::changePlayer(Screen screen, double player)
+{
+	double cnt = players().size();
+
+	size_t idx = static_cast<size_t>(floor(player*cnt));
+
+	switch (screen) {
+	case Screen::Player1: mLeft->setSelected(idx); break;
+	case Screen::Player2: mRight->setSelected(idx); break;
+	}
+
+	emit playerChanged(screen, playerName(screen));
+}
+
+QString DkHighscores::playerName(Screen screen) const
+{
+	switch (screen) {
+	case Screen::Player1: return mPlayers[mLeft->selected()]->name; break;
+	case Screen::Player2: return mPlayers[mRight->selected()]->name; break;
+	}
+
+	return "";
+}
+
+void DkHighscores::loadDB(const QString& path)
+{
+	QString dbName(path);
+	mDB = QSqlDatabase::addDatabase("QSQLITE");
+	mDB.setDatabaseName(dbName);
+	mDB.open();
+
+	if (!mDB.isOpen())
+		qDebug() << "Error opening sqlite database:\n" << mDB.lastError();
+
+	QSqlQuery query = QSqlQuery(mDB);
+	// Get image data back from database
+	if (!query.exec("SELECT name, picture from players"))
+		qDebug() << "Error getting image from table:\n" << query.lastError();
+
+
+	while (query.next()) {
+		QString name = query.value(0).toString();
+		QByteArray outByteArray = query.value(1).toByteArray();
+		
+		QPixmap picture;
+		picture.loadFromData(outByteArray);
+		picture = picture.scaledToWidth(128);
+
+		QPixmap selected;
+		selected.loadFromData(outByteArray);
+		selected = selected.scaledToWidth(256);
+
+		QSharedPointer<Player> player(new Player());
+		player->name = name;
+		player->picture = picture;
+		player->pictureSelected = selected;
+		mPlayers.push_back(player);
+	}
+}
+
+void DkHighscores::commitScore(int player1, int player2)
+{
+	QString winner; 
+	QString looser;
+
+	winner = mPlayers[mLeft->selected()]->name;
+	looser = mPlayers[mRight->selected()]->name;
+
+	if (player2 > player1) {
+		swap(winner, looser);
+	}
+
+	if (!mDB.isOpen()) {
+		qDebug() << "Database must be opened first";
+	}
+
+	QSqlQuery query(mDB);
+	query.prepare("Insert into scores(winner_name, looser_name, winner_points, looser_points) "
+				  " VALUES (:winner, :looser, :winner_score, :looser_score)"); 
+	query.bindValue(":winner", winner);
+	query.bindValue(":looser", looser);
+	query.bindValue(":winner_score", std::max(player1, player2));
+	query.bindValue(":looser_score", std::min(player1, player2));
+
+	if (!query.exec()) {
+		qDebug() << "Error inserting score in table:\n" << query.lastError();
+	}
+}
+}
+

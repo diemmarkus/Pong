@@ -32,6 +32,10 @@
 #include <QRect>
 #include <QLabel>
 #include <QSharedPointer>
+#include <map>
+#include <QSqlDatabase>
+#include <QHBoxLayout>
+
 #pragma warning(pop)		// no warnings from includes - end
 
 #include "DkMath.h"
@@ -85,11 +89,15 @@ public:
 	int player2Pin() const;
 	int speedPin() const;
 	int pausePin() const;
+	int player1SelectPin() const;
+	int player2SelectPin() const;
 
 	float playerRatio() const;
 
 	void setSpeed(float speed);
 	float speed() const;
+
+	QString DBPath() const;
 
 protected:
 	QRect mField;
@@ -100,7 +108,8 @@ protected:
 	int mPlayer2Pin = 4;
 	int mSpeedPin = 1;
 	int mPausePin = 0;	// not used anymore
-
+	int mPlayer1SelectPin = 3;
+	int mPlayer2SelectPin = 4;
 	float mSpeed = 30.0f;
 
 	QColor mBgCol = QColor(0,0,0,100);
@@ -110,6 +119,8 @@ protected:
 	QString mPlayer2Name = QObject::tr("Player 2");
 
 	float mPlayerRatio = 0.15f;
+
+	QString mDBPath;
 
 	void loadSettings();
 };
@@ -210,6 +221,76 @@ protected:
 	QSharedPointer<DkPongSettings> mS;
 };
 
+enum class Screen {
+	Player1,
+	Player2
+};
+struct Player {
+	QPixmap picture;
+	QPixmap pictureSelected;
+	QString name;
+};
+
+class DkHighscores;
+
+class DllExport DkPlayers : public QWidget {
+	Q_OBJECT
+
+public: 
+	DkPlayers(DkHighscores* mHighscores, Qt::Alignment align);
+	int selected() const;
+	void setSelected(int idx);
+	void create();
+
+private:
+	DkHighscores *mHighscores;
+	int mSelected;
+	Qt::Alignment mAlign;
+	QHBoxLayout * mLayout;
+	std::vector<QLabel*> mLabels;
+};
+
+class DllExport DkHighscores : public QWidget {
+	Q_OBJECT
+
+public:
+	DkHighscores(QWidget *parent = 0, QSharedPointer<DkPongSettings> settings = QSharedPointer<DkPongSettings>(new DkPongSettings()));
+	//virtual ~DkHighscores();
+
+	void loadDB(const QString& path);
+	const std::vector<QSharedPointer<Player>>& players() const;
+	
+	/*!
+		@brief Changes the current player in the specified screen
+		@param screen - e.g. Player1, Player2
+		@param player - floating point value in [0,1] to specify player
+	*/
+	void changePlayer(Screen screen, double player);
+	
+	/*!
+		@brief Insert score into DB
+		@param player1 - score for player1
+		@param player2 - score for player2
+	*/
+	void commitScore(int player1, int player2);
+
+	/*!
+		@brief Returns the name of the selected player for the given screen
+	*/
+	QString playerName(Screen screen) const;
+
+signals:
+	/*!
+		@brief Signal emitted when a new player is selected
+	*/
+	void playerChanged(Screen screen, const QString& name);
+private:
+	std::vector<QSharedPointer<Player>> mPlayers;
+	QSqlDatabase mDB;
+	DkPlayers* mLeft;
+	DkPlayers* mRight;
+};
+
 class DllExport DkPongPort : public QGraphicsView {
 	Q_OBJECT
 
@@ -230,6 +311,7 @@ public slots:
 	void countDown();
 	void controllerUpdate(int controller, int val);
 	void changeSpeed(int val);
+	void playerChanged(Screen screen, const QString& player);
 
 protected:
 	virtual void paintEvent(QPaintEvent* event);
@@ -262,6 +344,8 @@ private:
 	DkScoreLabel* mLargeInfo;
 	DkScoreLabel* mSmallInfo;
 
+	DkHighscores* mHighscores;
+
 	DkArduinoController* mController = 0;
 
 	void startCountDown(int sec = 3);
@@ -282,6 +366,5 @@ protected:
 	
 	DkPongPort* mViewport;
 };
-
 
 };
