@@ -89,6 +89,8 @@ public:
 	int player2Pin() const;
 	int speedPin() const;
 	int pausePin() const;
+	int player1SelectPin() const;
+	int player2SelectPin() const;
 
 	float playerRatio() const;
 
@@ -106,7 +108,8 @@ protected:
 	int mPlayer2Pin = 4;
 	int mSpeedPin = 1;
 	int mPausePin = 0;	// not used anymore
-
+	int mPlayer1SelectPin = 3;
+	int mPlayer2SelectPin = 4;
 	float mSpeed = 30.0f;
 
 	QColor mBgCol = QColor(0,0,0,100);

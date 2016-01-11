@@ -119,6 +119,8 @@ void DkPongSettings::writeSettings() {
 	settings.setValue("speedPin", mSpeedPin);
 	settings.setValue("pausePin", mPausePin);
 
+	settings.setValue("player1SelectPin", mPlayer1SelectPin);
+	settings.setValue("player2SelectPin", mPlayer1SelectPin);
 	//settings.setValue("speed", mSpeed);
 
 	settings.endGroup();
@@ -158,6 +160,14 @@ int DkPongSettings::pausePin() const {
 	return mPausePin;
 }
 
+int DkPongSettings::player1SelectPin() const {
+	return mPlayer1SelectPin;
+}
+
+int DkPongSettings::player2SelectPin() const {
+	return mPlayer2SelectPin;
+}
+
 void DkPongSettings::setSpeed(float speed) {
 	mSpeed = speed;
 }
@@ -192,7 +202,9 @@ void DkPongSettings::loadSettings() {
 	mPlayer2Pin = settings.value("player2Pin", mPlayer2Pin).toInt();
 	mSpeedPin = settings.value("speedPin", mSpeedPin).toInt();
 	mPausePin = settings.value("pausePin", mPausePin).toInt();
-	
+	mPlayer1SelectPin = settings.value("player1SelectPin", mPlayer1SelectPin).toInt();
+	mPlayer2SelectPin = settings.value("player2SelectPin", mPlayer2SelectPin).toInt();
+
 	mDBPath = settings.value("dbPath", mDBPath).toString();
 	//mSpeed = settings.value("speed", mSpeed).toFloat();
 
@@ -423,8 +435,8 @@ void DkPongPort::initGame() {
 	mPlayer2->reset(QPoint(qRound(width()-mS->unit()*1.5f), qRound(height()*0.5f)));
 
 	if (mPlayer1->score() == 0 && mPlayer2->score() == 0) {
-		mP1Score->setText(mPlayer1->name());
-		mP2Score->setText(mPlayer2->name());
+		mP1Score->setText("0");
+		mP2Score->setText("0");
 	}
 	else {
 		mP1Score->setText(QString::number(mPlayer1->score()));
@@ -436,8 +448,8 @@ void DkPongPort::initGame() {
 
 void DkPongPort::start() {
 
-	mP1Score->setText(mPlayer1->name());
-	mP2Score->setText(mPlayer2->name());
+	mP1Score->setText("0");
+	mP2Score->setText("0");
 	update();
 
 	if (mController)
@@ -458,7 +470,6 @@ void DkPongPort::pauseGame(bool pause) {
 		mSmallInfo->setText(tr("Press <SPACE> to start."));
 		connect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
 		connect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
-
 	}
 	else {
 
@@ -474,9 +485,9 @@ void DkPongPort::pauseGame(bool pause) {
 		mEventLoop->start();
 		disconnect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()));
 		disconnect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()));
-
 	}
 
+	mHighscores->setVisible(pause);
 	mLargeInfo->setVisible(pause);
 	mSmallInfo->setVisible(pause);
 }
@@ -533,6 +544,12 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 			startCountDown();
 			mLastSpeedValue = v;	// update last value
 		}
+	} 
+	else if (controller == mS->player1SelectPin() && !mEventLoop->isActive()) {
+		mHighscores->changePlayer(Screen::Player1, v);
+	}
+	else if (controller == mS->player2SelectPin() && !mEventLoop->isActive()) {
+		mHighscores->changePlayer(Screen::Player2, v);
 	}
 }
 
@@ -613,12 +630,14 @@ void DkPongPort::startCountDown(int sec) {
 	if (mCountDownTimer->isActive())
 		return;
 
+	
 	mCountDownSecs = sec;
 	pauseGame();
 	mCountDownTimer->start();
 	mLargeInfo->setText(QString::number(mCountDownSecs));
 	mLargeInfo->show();
 	mSmallInfo->hide();
+	mHighscores->hide();
 }
 
 void DkPongPort::resizeEvent(QResizeEvent *event) {
