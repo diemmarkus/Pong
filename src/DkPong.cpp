@@ -1051,7 +1051,7 @@ void DkPlayers::create()
 
 	QHBoxLayout* l = new QHBoxLayout(this);
 	l->setAlignment(mAlign);
-	l->setContentsMargins(0, 0, 0, 0);
+	l->setContentsMargins(20, 0, 20, 0);
 	l->addWidget(mScrollArea);
 
 }
