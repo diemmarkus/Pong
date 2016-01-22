@@ -112,6 +112,9 @@ int main(int argc, char** argv) {
 
 	// run pong
 	int rVal = app.exec();
+
+	delete pw;
+
 	return rVal;
 
 }

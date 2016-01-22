@@ -47,6 +47,7 @@ class DllExport DkArduinoController : public QThread {
 
 public:
 	DkArduinoController(QWidget* widget = 0);
+	~DkArduinoController();
 
 	void setComPort(const QString& cP) { comPort = cP; };
 
@@ -68,6 +69,9 @@ protected:
 	void init();
 	void serialValue(unsigned short val) const;
 	void printComParams(const DCB& dcb) const;
+
+	void readSettings();
+	void writeSettings() const;
 
 };
 

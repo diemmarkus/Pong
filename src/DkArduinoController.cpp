@@ -27,6 +27,7 @@
 #include "DkArduinoController.h"
 
 #include "DkUtils.h"
+#include "DkSettings.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QSettings>
@@ -40,12 +41,40 @@ namespace pong {
 DkArduinoController::DkArduinoController(QWidget* widget) : QThread(widget) {
 	parent = widget;
 	init();
+	readSettings();
+}
+
+DkArduinoController::~DkArduinoController() {
+	writeSettings();
 }
 
 void DkArduinoController::init() {
 
 	comPort = "COM4";
 	stop = false;
+}
+
+void DkArduinoController::readSettings() {
+	
+	QSettings& settings = Settings::instance().getSettings();
+	settings.beginGroup("DkArduinoController");
+	
+	comPort = settings.value("comPort", comPort).toString();
+	
+	settings.endGroup();
+	
+}
+
+void DkArduinoController::writeSettings() const {
+
+	QSettings& settings = Settings::instance().getSettings();
+	settings.beginGroup("DkArduinoController");
+	
+	settings.setValue("comPort", comPort);
+
+	settings.endGroup();
+
+	qDebug() << "[DkArduinoController] settings written...";
 }
 
 void DkArduinoController::run() {
