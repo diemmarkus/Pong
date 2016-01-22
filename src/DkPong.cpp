@@ -243,8 +243,8 @@ void DkPongPlayer::reset(const QPoint& pos) {
 	// only reset if we don't have controller
 	if (mControllerPos == -1)
 		mRect.moveCenter(pos);
-	else
-		mRect.moveCenter(QPoint(pos.x(), qRound(mControllerPos)));
+	//else
+	//	mRect.moveCenter(QPoint(pos.x(), qRound(mControllerPos)));
 }
 
 int DkPongPlayer::pos() const {
@@ -467,6 +467,7 @@ void DkPongPort::togglePause() {
 
 void DkPongPort::pauseGame(bool pause) {
 
+	// pause the game
 	if (pause) {
 		mCountDownTimer->stop();
 		mEventLoop->stop();
@@ -475,6 +476,7 @@ void DkPongPort::pauseGame(bool pause) {
 		connect(mPlayer1, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
 		connect(mPlayer2, SIGNAL(updatePaint()), this, SLOT(update()), Qt::UniqueConnection);
 	}
+	// start the game
 	else {
 
 		mP1Score->setText(QString::number(mPlayer1->score()));
@@ -496,8 +498,7 @@ void DkPongPort::pauseGame(bool pause) {
 	mSmallInfo->setVisible(pause);
 }
 
-void DkPongPort::playerChanged(Screen screen, const QString& name)
-{
+void DkPongPort::playerChanged(Screen screen, const QString& name) {
 	if (screen == Screen::Player1) {
 		mPlayer1->setName(name);
 	}
@@ -506,6 +507,7 @@ void DkPongPort::playerChanged(Screen screen, const QString& name)
 	}
 	
 }
+
 DkPongPort::~DkPongPort() {
 }
 
@@ -539,16 +541,13 @@ void DkPongPort::controllerUpdate(int controller, int val) {
 		mPlayer2->setPos(v);
 	else if (controller == mS->speedPin()) {
 		mBall.setAnalogueSpeed(v);
-		if (v < 0.1f) {
-			pauseGame();
-			qDebug() << "v:" << v << "v raw: " << val;
-		}
-		else if (v > 0.1f && !mEventLoop->isActive()) {
-			qDebug() << "paused: " << !mEventLoop->isActive() << "v:" << v;
-			startCountDown();
-			mLastSpeedValue = v;	// update last value
-		}
 	} 
+	else if (controller == mS->pausePin()) {
+		if (mEventLoop->isActive())
+			togglePause();
+		else
+			startCountDown();
+	}
 	else if (controller == mS->player1SelectPin() && !mEventLoop->isActive()) {
 		mHighscores->changePlayer(Screen::Player1, v);
 	}
@@ -721,7 +720,11 @@ void DkPongPort::keyPressEvent(QKeyEvent *event) {
 		mPlayer1->setSpeed(mPlayerSpeed);
 	}
 	if (event->key() == Qt::Key_Space) {
-		startCountDown();
+		
+		if (mEventLoop->isActive())
+			togglePause();
+		else
+			startCountDown();
 	}
 	if (event->key() == Qt::Key_Plus) {
 		changeSpeed(1);

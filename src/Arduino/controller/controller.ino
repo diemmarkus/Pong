@@ -53,7 +53,8 @@ void setup() {
   
   pc.pin = 7;
   pc.digital = 1;
-  
+  pc.val = digitalRead(pc.pin);  // do not fire at the beginning
+      
   // initialize digital pin 13 as an output.
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);   // turn the LED on (HIGH is the voltage level)
@@ -63,7 +64,7 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-
+  
   update(&c0);  // update controller 0
   update(&c1);  // update controller 1
   update(&c2);  // update controller 2

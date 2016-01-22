@@ -107,7 +107,7 @@ protected:
 	int mPlayer1Pin = 2;
 	int mPlayer2Pin = 4;
 	int mSpeedPin = 1;
-	int mPausePin = 0;	// not used anymore
+	int mPausePin = 7;
 	int mPlayer1SelectPin = 3;
 	int mPlayer2SelectPin = 4;
 	float mSpeed = 30.0f;

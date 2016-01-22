@@ -54,10 +54,8 @@ void DkArduinoController::run() {
 	
 	std::wstring comPortStd = DkUtils::qStringToStdWString(comPort);
 	hCOM = CreateFileW((LPCWSTR)comPortStd.c_str(), GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	//DWORD EVDSRM = 42;
 
 	if (hCOM == INVALID_HANDLE_VALUE) {
-		
 		qDebug() << "hCOM " << comPort << " is NULL....";
 		return;
 	}
@@ -70,41 +68,33 @@ void DkArduinoController::run() {
 	FillMemory(&dcb, sizeof(dcb), 0);
 	if (!GetCommState(hCOM, &dcb))     // get current DCB
 		qDebug() << "error in get COM state...";
-	// Error in GetCommState
-	//return FALSE;
 
-	// Update DCB rate.
-	dcb.BaudRate = CBR_9600 ;
-	dcb.fRtsControl = RTS_CONTROL_ENABLE;
+	//qDebug() << "dcb defaults ------------------------";
+	//printComParams(dcb);
+
+	// set params for serial port communication
+	dcb.BaudRate = CBR_9600;
+	dcb.ByteSize = 8;
+	//dcb.EofChar = 0xFE;		// þ - should be that... (small letter thorn)
+	//dcb.ErrorChar = 0x01;		// SOH (start of heading)
 	dcb.fDtrControl = DTR_CONTROL_ENABLE;
-	//dcb.Parity = 0;
-	//dcb.ByteSize = 8;
-	//dcb.StopBits = 1;
-
-	//emit message(QString("baud rate: ") + QString::number(dcb.BaudRate));
-
-	//if (!BuildCommDCB(L("baud=9600 parity=0 data=8 stop=1"), &dcb))
-	//	emit message("NOT building comm DCB");
-
-	//dcb.fOutxCtsFlow = MS_CTS_ON;
+	dcb.fTXContinueOnXoff = 1;
+	dcb.XoffLim = 512;
+	dcb.XonLim = 2048;
 
 	// Set new state.
-	if (!SetCommState(hCOM, &dcb))
-		qDebug() << "error in set com state";
-	// Error in SetCommState. Possibly a problem with the communications 
-	// port handle or a problem with the DCB structure itself.
+	if (!SetCommState(hCOM, &dcb)) {
+		qDebug() << "cannot set com state!";
+	}
 
-	//GetCommState(hCOM, &dcb);
-	printf("fRts: %d\n", dcb.fRtsControl);
-	printf("fDtr: %d\n", dcb.fDtrControl);
+	if (!GetCommState(hCOM, &dcb))     // get current DCB
+		qDebug() << "error in get COM state...";
 
-	//if (!EscapeCommFunction(hCOM, CLRDTR))
-	//	emit message("NOT clearing DTR");
-	//Sleep(200);
-	//if (!EscapeCommFunction(hCOM, SETDTR))
-	//	emit message("NOT setting DTR");
+	//qDebug() << "\n\ndcb our params ------------------------";
+	//printComParams(dcb);
 
-	//printf("stat (beginning): %d\n", *modemStat);
+	// clear all operations that were performed _before_ we started...
+	PurgeComm(hCOM, PURGE_RXCLEAR);
 
 	DWORD read;
 
@@ -120,7 +110,7 @@ void DkArduinoController::run() {
 
 		byte magicByte = 0;
 		ReadFile(hCOM, &magicByte, sizeof(magicByte), &read, NULL);
-		//qDebug() << "I read: " << read;
+		qDebug() << "I read: " << read << "magic byte:" << magicByte;
 
 		if (magicByte == 42) {
 			unsigned short buffer = 0;
@@ -132,6 +122,38 @@ void DkArduinoController::run() {
 		}
 	}
 
+}
+
+void DkArduinoController::printComParams(const DCB& dcb) const {
+
+	qDebug() << "BaudRate" << dcb.BaudRate;
+	qDebug() << "ByteSize"<< dcb.ByteSize;
+	qDebug() << "DCBlength" << dcb.DCBlength;
+	qDebug() << "EofChar" << dcb.EofChar;
+	qDebug() << "ErrorChar" << dcb.ErrorChar;
+	qDebug() << "EvtChar" << dcb.EvtChar;
+	qDebug() << "fAbortOnError" << dcb.fAbortOnError;
+	qDebug() << "fBinary" << dcb.fBinary;
+	qDebug() << "fDsrSensitivity" << dcb.fDsrSensitivity;
+	qDebug() << "fDtrControl" << dcb.fDtrControl;
+	qDebug() << "fDummy2" << dcb.fDummy2;
+	qDebug() << "fErrorChar" << dcb.fErrorChar;
+	qDebug() << "fInX" << dcb.fInX;
+	qDebug() << "fNull" << dcb.fNull;
+	qDebug() << "fOutX" << dcb.fOutX;
+	qDebug() << "fOutxCtsFlow" << dcb.fOutxCtsFlow;
+	qDebug() << "fOutxDsrFlow" << dcb.fOutxDsrFlow;
+	qDebug() << "fParity" << dcb.fParity;
+	qDebug() << "fRtsControl" << dcb.fRtsControl;
+	qDebug() << "fTXContinueOnXoff" << dcb.fTXContinueOnXoff;
+	qDebug() << "Parity" << dcb.Parity;
+	qDebug() << "StopBits" << dcb.StopBits;
+	qDebug() << "wReserved" << dcb.wReserved;
+	qDebug() << "wReserved1" << dcb.wReserved1;
+	qDebug() << "XoffChar" << dcb.XoffChar;
+	qDebug() << "XoffLim" << dcb.XoffLim;
+	qDebug() << "XonChar" << dcb.XonChar;
+	qDebug() << "XonLim" << dcb.XonLim;
 }
 
 void DkArduinoController::serialValue(unsigned short val) const {

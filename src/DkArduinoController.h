@@ -67,6 +67,7 @@ protected:
 
 	void init();
 	void serialValue(unsigned short val) const;
+	void printComParams(const DCB& dcb) const;
 
 };
 
