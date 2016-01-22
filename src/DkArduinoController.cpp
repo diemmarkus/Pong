@@ -120,6 +120,7 @@ void DkArduinoController::run() {
 
 		byte magicByte = 0;
 		ReadFile(hCOM, &magicByte, sizeof(magicByte), &read, NULL);
+		//qDebug() << "I read: " << read;
 
 		if (magicByte == 42) {
 			unsigned short buffer = 0;

@@ -29,7 +29,8 @@ int LED = 13;  // the nice orange thingy
 struct Controller {
   int pin = 0;
   int val = 0;
-  int output = 0;  
+  int output = 0;
+  int digital = 0;  
 };
 
 Controller c0;	// player 1
@@ -37,6 +38,8 @@ Controller c1;	// player 2
 Controller c2;	// speed controll
 Controller c3;  // generic
 Controller c4;  // generic
+Controller c5;  // generic
+Controller pc;  // power button
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -46,6 +49,10 @@ void setup() {
   c2.pin = 2;
   c3.pin = 3;
   c4.pin = 4;
+  c5.pin = 5;
+  
+  pc.pin = 7;
+  pc.digital = 1;
   
   // initialize digital pin 13 as an output.
   pinMode(LED, OUTPUT);
@@ -62,8 +69,11 @@ void loop() {
   update(&c2);  // update controller 2
   update(&c3);  // update controller 3
   update(&c4);  // update controller 4
+  update(&c5);  // update controller 5
+  update(&pc);  // update power button
 
-  delay(15);    // wait a bit
+  Serial.flush();
+  delay(7);
   
 }
 
@@ -75,10 +85,18 @@ void update(struct Controller* c) {
     return;
   }
   
-  int ar = analogRead(c->pin);
+  int ar = 0;
   
-  if (abs(ar - c->val) < 4)  // ignore noise
-    return;
+  if (c->digital == 1) {
+    ar = digitalRead(c->pin);
+     if (ar == c->val)  // ignore noise
+      return;
+  }
+  else {
+    ar = analogRead(c->pin); 
+    if (abs(ar - c->val) < 4)  // ignore noise
+      return;
+  }
   
   c->val = ar;
   merge(c);  // merges pin & value for the serial output
